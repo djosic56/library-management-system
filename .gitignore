@@ -1,0 +1,31 @@
+# Dependencies
+/vendor/
+composer.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+error_log
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sensitive
+config/local.php
+.env
+
+# Archives
+*.zip
+arh/
+arh*.zip
+
+# Temporary
+*.tmp
+*.bak

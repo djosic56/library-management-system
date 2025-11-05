@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         stopOnFailure="false">
+    <testsuites>
+        <testsuite name="Unit Tests">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Integration Tests">
+            <directory>tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+    <coverage>
+        <include>
+            <directory suffix=".php">.</directory>
+        </include>
+        <exclude>
+            <directory>tests</directory>
+            <directory>arh</directory>
+            <file>config.php</file>
+        </exclude>
+    </coverage>
+    <php>
+        <env name="DB_HOST" value="localhost"/>
+        <env name="DB_NAME" value="jsistem_ap_test"/>
+        <env name="DB_USER" value="jsistem_apuser"/>
+        <env name="DB_PASS" value="pAP3779"/>
+    </php>
+</phpunit>
