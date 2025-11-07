@@ -78,3 +78,6 @@ function logAction(int $userId, string $action, string $ip, ?string $details = n
         error_log("Failed to log action: " . $e->getMessage());
     }
 }
+
+// Initialize Database singleton on bootstrap
+getDatabase();
