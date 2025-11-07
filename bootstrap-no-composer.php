@@ -14,6 +14,10 @@ require_once __DIR__ . '/config.php';
 use App\Database\Database;
 use App\Services\BookService;
 use App\Services\AuthorService;
+use App\Exceptions\ErrorHandler;
+
+// Register error handler
+ErrorHandler::register();
 
 /**
  * Initialize Database connection
