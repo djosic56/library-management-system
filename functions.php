@@ -48,7 +48,7 @@ function verify_csrf() {
  * Check login attempts and apply rate limiting
  */
 function check_login_attempts($username, $ip) {
-	global $pdo;
+	$pdo = \App\Database\Database::getInstance()->getConnection();
 	
 	$time_window = date('Y-m-d H:i:s', time() - LOGIN_LOCKOUT_TIME);
 	
@@ -71,7 +71,7 @@ function check_login_attempts($username, $ip) {
  * Log login attempt
  */
 function log_login_attempt($username, $user_id, $ip, $success) {
-	global $pdo;
+	$pdo = \App\Database\Database::getInstance()->getConnection();
 	
 	$stmt = $pdo->prepare("INSERT INTO login_attempt (username, user_id, ip_address, success) 
 						   VALUES (?, ?, ?, ?)");
@@ -125,7 +125,7 @@ function require_admin() {
  * Log user action
  */
 function log_action($user_id, $action, $ip, $details = null) {
-	global $pdo;
+	$pdo = \App\Database\Database::getInstance()->getConnection();
 	
 	try {
 		$stmt = $pdo->prepare("INSERT INTO user_log (user_id, action, ip, details) VALUES (?, ?, ?, ?)");
@@ -153,7 +153,7 @@ function sanitize_string($input) {
  * Get books with filters
  */
 function get_books($search_title, $search_author, $filter_status, $filter_invoice, $page = 1, $sort_by = 'id', $sort_order = 'DESC') {
-	global $pdo;
+	$pdo = \App\Database\Database::getInstance()->getConnection();
 	
 	$offset = ($page - 1) * ITEMS_PER_PAGE;
 	$params = [];
@@ -214,7 +214,7 @@ function get_books($search_title, $search_author, $filter_status, $filter_invoic
  * Get total books count with filters
  */
 function get_books_count($search_title, $search_author, $filter_status, $filter_invoice) {
-	global $pdo;
+	$pdo = \App\Database\Database::getInstance()->getConnection();
 	
 	$params = [];
 	$sql = "SELECT COUNT(DISTINCT b.id) as total
@@ -253,7 +253,7 @@ function get_books_count($search_title, $search_author, $filter_status, $filter_
  * Get all statuses
  */
 function get_statuses() {
-	global $pdo;
+	$pdo = \App\Database\Database::getInstance()->getConnection();
 	$stmt = $pdo->query("SELECT * FROM status ORDER BY name");
 	return $stmt->fetchAll();
 }
@@ -262,7 +262,7 @@ function get_statuses() {
  * Get all formatings
  */
 function get_formatings() {
-	global $pdo;
+	$pdo = \App\Database\Database::getInstance()->getConnection();
 	$stmt = $pdo->query("SELECT * FROM formating ORDER BY name");
 	return $stmt->fetchAll();
 }

@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Bootstrap file
+ * Bootstrap file (WITHOUT Composer)
  * Initializes the application and provides access to core services
  */
 
-// Load Composer autoloader
-require_once __DIR__ . '/vendor/autoload.php';
+// Load custom autoloader (instead of Composer)
+require_once __DIR__ . '/autoload.php';
 
 // Load legacy config (for backward compatibility)
 require_once __DIR__ . '/config.php';
@@ -69,7 +69,7 @@ function getAuthorService(): AuthorService
  */
 function logAction(int $userId, string $action, string $ip, ?string $details = null): void
 {
-    $pdo = Database::getInstance()->getConnection();
+    $pdo = \App\Database\Database::getInstance()->getConnection();
 
     try {
         $stmt = $pdo->prepare("INSERT INTO user_log (user_id, action, ip, details) VALUES (?, ?, ?, ?)");
