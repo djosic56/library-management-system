@@ -23,13 +23,22 @@ require_login();
 						Books
 					</a>
 				</li>
-				<li class="nav-item">  
+				<li class="nav-item">
 					<a class="nav-link" href="authors.php">
 						<svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
 							<path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
 							<path d="M4 21a8 8 0 0 1 16 0" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 						</svg>
 						Authors
+					</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link" href="https://j-sistem.hr/graphycs/index.php" target="_blank">
+						<svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+							<path d="M3 3h18v18H3z" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+							<path d="M3 9h18M9 3v18" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+						</svg>
+						Graphycs
 					</a>
 				</li>
 				<?php if (is_admin()): ?>
