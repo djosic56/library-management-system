@@ -1,156 +1,131 @@
 <?php
-// functions.php - Improved version with security enhancements
+// functions.php - Legacy wrapper functions (refactored to use Helper classes)
 require_once 'config.php';
+
+use App\Helpers\SecurityHelper;
+use App\Helpers\AuthHelper;
+use App\Helpers\ValidationHelper;
+use App\Helpers\LogHelper;
+
+// ========== CSRF Protection (delegated to SecurityHelper) ==========
 
 /**
  * Generate CSRF token
+ * @deprecated Use SecurityHelper::generateCsrfToken() instead
  */
 function generate_csrf_token() {
-	if (empty($_SESSION['csrf_token'])) {
-		$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-	}
-	return $_SESSION['csrf_token'];
+	return SecurityHelper::generateCsrfToken();
 }
 
 /**
  * Validate CSRF token
+ * @deprecated Use SecurityHelper::validateCsrfToken() instead
  */
 function validate_csrf_token($token) {
-	if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $token)) {
-		return false;
-	}
-	return true;
+	return SecurityHelper::validateCsrfToken($token);
 }
 
 /**
  * Get CSRF input field
+ * @deprecated Use SecurityHelper::csrfField() instead
  */
 function csrf_field() {
-	$token = generate_csrf_token();
-	return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars($token, ENT_QUOTES, 'UTF-8') . '">';
+	return SecurityHelper::csrfField();
 }
 
 /**
  * Verify CSRF token from POST
+ * @deprecated Use SecurityHelper::verifyCsrf() instead
  */
 function verify_csrf() {
-	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-		$token = $_POST['csrf_token'] ?? '';
-		if (!validate_csrf_token($token)) {
-			http_response_code(403);
-			error_log("CSRF validation failed for user: " . ($_SESSION['user_id'] ?? 'unknown'));
-			die('CSRF token validation failed');
-		}
-	}
+	SecurityHelper::verifyCsrf();
 }
+
+// ========== Authentication & Authorization (delegated to AuthHelper) ==========
 
 /**
  * Check login attempts and apply rate limiting
+ * @deprecated Use AuthHelper::checkLoginAttempts() instead
  */
 function check_login_attempts($username, $ip) {
-	$pdo = \App\Database\Database::getInstance()->getConnection();
-	
-	$time_window = date('Y-m-d H:i:s', time() - LOGIN_LOCKOUT_TIME);
-	
-	// Check failed attempts by username
-	$stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempt 
-						   WHERE username = ? AND attempted_at > ? AND success = 0");
-	$stmt->execute([$username, $time_window]);
-	$username_attempts = $stmt->fetchColumn();
-	
-	// Check failed attempts by IP
-	$stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempt 
-						   WHERE ip_address = ? AND attempted_at > ? AND success = 0");
-	$stmt->execute([$ip, $time_window]);
-	$ip_attempts = $stmt->fetchColumn();
-	
-	return ($username_attempts >= MAX_LOGIN_ATTEMPTS || $ip_attempts >= MAX_LOGIN_ATTEMPTS);
+	return AuthHelper::checkLoginAttempts($username, $ip);
 }
 
 /**
  * Log login attempt
+ * @deprecated Use AuthHelper::logLoginAttempt() instead
  */
 function log_login_attempt($username, $user_id, $ip, $success) {
-	$pdo = \App\Database\Database::getInstance()->getConnection();
-	
-	$stmt = $pdo->prepare("INSERT INTO login_attempt (username, user_id, ip_address, success) 
-						   VALUES (?, ?, ?, ?)");
-	$stmt->execute([$username, $user_id, $ip, $success ? 1 : 0]);
+	AuthHelper::logLoginAttempt($username, $user_id, $ip, $success);
 }
 
 /**
  * Require user to be logged in
+ * @deprecated Use AuthHelper::requireLogin() instead
  */
 function require_login() {
-	if (!isset($_SESSION['user_id'])) {
-		// Store the intended destination
-		$redirect = $_SERVER['REQUEST_URI'];
-
-		// Redirect to login page with return URL
-		header('Location: login.php?redirect=' . urlencode($redirect));
-		exit;
-	}
+	AuthHelper::requireLogin();
 }
+
 /**
  * Require change password modal
+ * @deprecated Use AuthHelper::requireChangePassword() instead
  */
 function require_change_password() {
-	require_login();
-	
-	// Redirect to change password page
-	header('Location: change_password.php');
-	exit;
+	AuthHelper::requireChangePassword();
 }
 
 /**
  * Check if user is admin
+ * @deprecated Use AuthHelper::isAdmin() instead
  */
 function is_admin() {
-	return isset($_SESSION['level']) && (int)$_SESSION['level'] === USER_LEVEL_ADMIN;
+	return AuthHelper::isAdmin();
 }
 
 /**
  * Require admin privileges
+ * @deprecated Use AuthHelper::requireAdmin() instead
  */
 function require_admin() {
-	require_login();
-	if (!is_admin()) {
-		http_response_code(403);
-		header('Location: index.php');
-		exit;
-	}
+	AuthHelper::requireAdmin();
 }
+
+// ========== Logging (delegated to LogHelper) ==========
 
 /**
  * Log user action
+ * @deprecated Use LogHelper::logAction() instead
  */
 function log_action($user_id, $action, $ip, $details = null) {
-	$pdo = \App\Database\Database::getInstance()->getConnection();
-	
-	try {
-		$stmt = $pdo->prepare("INSERT INTO user_log (user_id, action, ip, details) VALUES (?, ?, ?, ?)");
-		$stmt->execute([$user_id, $action, $ip, $details]);
-	} catch (PDOException $e) {
-		error_log("Failed to log action: " . $e->getMessage());
-	}
+	LogHelper::logAction($user_id, $action, $ip, $details);
 }
+
+// ========== Validation (delegated to ValidationHelper) ==========
 
 /**
  * Validate email format
+ * @deprecated Use ValidationHelper::validateEmail() instead
  */
 function validate_email($email) {
-	return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+	return ValidationHelper::validateEmail($email);
 }
 
 /**
  * Sanitize string input
+ * @deprecated Use ValidationHelper::sanitizeString() instead
  */
 function sanitize_string($input) {
-	return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+	return ValidationHelper::sanitizeString($input);
 }
+
+// ========== Legacy Database Functions (for backward compatibility) ==========
+// NOTE: These should be replaced with BookService/AuthorService methods
+// Kept for backward compatibility with older pages
 
 /**
  * Get books with filters
+ * @deprecated Use BookService::getBooks() instead
  */
 function get_books($search_title, $search_author, $filter_status, $filter_invoice, $page = 1, $sort_by = 'id', $sort_order = 'DESC') {
 	$pdo = \App\Database\Database::getInstance()->getConnection();
