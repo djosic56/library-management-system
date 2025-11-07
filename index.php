@@ -207,7 +207,7 @@ try {
 	<div class="container-fluid p-0">
 		<!-- Hero Section -->
 		<div class="hero-section">
-			<h1><i class="bi bi-book"></i> Welcome, <?php echo $username; ?>!</h1>
+			<h1><i class="bi bi-book"></i> Welcome, <?php echo htmlspecialchars($username); ?>!</h1>
 			<p>Manage your library collection with ease</p>
 			<?php if (isset($total_books) && isset($total_authors)) { ?>
 			<div class="mt-3">

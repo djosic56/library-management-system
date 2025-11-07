@@ -74,9 +74,9 @@ require_login();
 			</ul>
 			<ul class="navbar-nav">
 				<li class="nav-item dropdown">
-					<a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" 
+					<a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown"
 						aria-expanded="false">
-						<i class="bi bi-person-circle"></i> <?=$_SESSION['username']?> (<?=$_SESSION['level']?>)
+						<i class="bi bi-person-circle"></i> <?=htmlspecialchars($_SESSION['username'])?> (<?=$_SESSION['level']?>)
 					</a>
 					<ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
 						<li>
