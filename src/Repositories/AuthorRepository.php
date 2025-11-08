@@ -2,13 +2,14 @@
 
 namespace App\Repositories;
 
+use App\Contracts\AuthorRepositoryInterface;
 use PDO;
 
 /**
  * Author Repository
  * Handles database operations for authors
  */
-class AuthorRepository extends Repository
+class AuthorRepository extends Repository implements AuthorRepositoryInterface
 {
     protected string $table = 'author';
 

@@ -3,13 +3,14 @@
 namespace App\Repositories;
 
 use App\Database\Database;
+use App\Contracts\RepositoryInterface;
 use PDO;
 
 /**
  * Base Repository class
  * Handles common database operations for models
  */
-abstract class Repository
+abstract class Repository implements RepositoryInterface
 {
     protected PDO $db;
     protected string $table;

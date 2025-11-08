@@ -6,12 +6,13 @@ use App\Database\Database;
 use App\Models\Author;
 use App\Repositories\AuthorRepository;
 use App\Validators\Validator;
+use App\Contracts\AuthorServiceInterface;
 
 /**
  * Author Service
  * Handles business logic for author operations
  */
-class AuthorService
+class AuthorService implements AuthorServiceInterface
 {
     private AuthorRepository $authorRepository;
     private Validator $validator;

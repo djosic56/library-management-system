@@ -3,13 +3,14 @@
 namespace App\Repositories;
 
 use App\Models\Book;
+use App\Contracts\BookRepositoryInterface;
 use PDO;
 
 /**
  * Book Repository
  * Handles database operations for books
  */
-class BookRepository extends Repository
+class BookRepository extends Repository implements BookRepositoryInterface
 {
     protected string $table = 'book';
 

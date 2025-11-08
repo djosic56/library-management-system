@@ -6,12 +6,13 @@ use App\Database\Database;
 use App\Models\Book;
 use App\Repositories\BookRepository;
 use App\Validators\Validator;
+use App\Contracts\BookServiceInterface;
 
 /**
  * Book Service
  * Handles business logic for book operations
  */
-class BookService
+class BookService implements BookServiceInterface
 {
     private BookRepository $bookRepository;
     private Validator $validator;
