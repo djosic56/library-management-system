@@ -4,6 +4,7 @@ namespace App\Exceptions;
 
 use Exception;
 use Throwable;
+use App\Logging\Logger;
 
 /**
  * Centralized error handler
@@ -94,15 +95,20 @@ class ErrorHandler
     private static function logException(Throwable $exception): void
     {
         $message = sprintf(
-            "[%s] %s in %s:%d\nStack trace:\n%s",
-            get_class($exception),
+            "%s in %s:%d",
             $exception->getMessage(),
             $exception->getFile(),
-            $exception->getLine(),
-            $exception->getTraceAsString()
+            $exception->getLine()
         );
 
-        error_log($message);
+        $context = [
+            'exception' => get_class($exception),
+            'file' => $exception->getFile(),
+            'line' => $exception->getLine(),
+            'trace' => $exception->getTraceAsString()
+        ];
+
+        Logger::error($message, $context);
     }
 
     /**
