@@ -307,6 +307,7 @@ try {
 									$email_body = "Books for correction:\n\n";
 									foreach ($status_books[$status] as $book) {
 										$email_body .= htmlspecialchars($book['title']) . "\n";
+										$email_body .= "Author: " . htmlspecialchars($book['authors'] ?? 'N/A') . "\n";
 										if ($book['pages']) {
 											$email_body .= "Pages: " . $book['pages'] . "\n";
 										}

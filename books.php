@@ -16,7 +16,7 @@ $authorService = getAuthorService();
 // Handle autocomplete request
 if (isset($_GET['autocomplete']) && $_GET['autocomplete'] == 1) {
 	header('Content-Type: application/json');
-	$query = filter_input(INPUT_GET, 'q', FILTER_SANITIZE_STRING) ?? '';
+	$query = trim($_GET['q'] ?? '');
 	try {
 		$results = $authorService->searchByName($query);
 		echo json_encode($results);
@@ -30,13 +30,13 @@ if (isset($_GET['autocomplete']) && $_GET['autocomplete'] == 1) {
 // Prevent caching
 header("Cache-Control: no-cache, must-revalidate");
 
-$search_title = filter_input(INPUT_GET, 'search_title', FILTER_SANITIZE_STRING) ?? '';
-$search_author = filter_input(INPUT_GET, 'search_author', FILTER_SANITIZE_STRING) ?? '';
-$filter_status = filter_input(INPUT_GET, 'filter_status', FILTER_SANITIZE_STRING) ?? '';
-$filter_invoice = filter_input(INPUT_GET, 'filter_invoice', FILTER_SANITIZE_STRING) ?? '';
+$search_title = trim($_GET['search_title'] ?? '');
+$search_author = trim($_GET['search_author'] ?? '');
+$filter_status = trim($_GET['filter_status'] ?? '');
+$filter_invoice = trim($_GET['filter_invoice'] ?? '');
 $page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, ['options' => ['default' => 1, 'min_range' => 1]]) ?? 1;
-$sort_by = filter_input(INPUT_GET, 'sort_by', FILTER_SANITIZE_STRING) ?? 'id';
-$sort_order = filter_input(INPUT_GET, 'sort_order', FILTER_SANITIZE_STRING) ?? 'DESC';
+$sort_by = trim($_GET['sort_by'] ?? 'id');
+$sort_order = trim($_GET['sort_order'] ?? 'DESC');
 $error = '';
 $success = '';
 

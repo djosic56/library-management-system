@@ -5,10 +5,10 @@ require_once 'functions.php';
 require_login();
 
 // Get filter parameters
-$search_title = filter_input(INPUT_GET, 'search_title', FILTER_SANITIZE_STRING) ?? '';
-$search_author = filter_input(INPUT_GET, 'search_author', FILTER_SANITIZE_STRING) ?? '';
-$filter_status = filter_input(INPUT_GET, 'filter_status', FILTER_SANITIZE_STRING) ?? '';
-$filter_invoice = filter_input(INPUT_GET, 'filter_invoice', FILTER_SANITIZE_STRING) ?? '';
+$search_title = trim($_GET['search_title'] ?? '');
+$search_author = trim($_GET['search_author'] ?? '');
+$filter_status = trim($_GET['filter_status'] ?? '');
+$filter_invoice = trim($_GET['filter_invoice'] ?? '');
 
 try {
 	// Build query with filters (same as books.php but without pagination)

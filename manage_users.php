@@ -9,9 +9,9 @@ $success = '';
 
 // Pagination and sorting
 $page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, ['options' => ['default' => 1, 'min_range' => 1]]) ?? 1;
-$sort_by = filter_input(INPUT_GET, 'sort_by', FILTER_SANITIZE_STRING) ?? 'id';
-$sort_order = filter_input(INPUT_GET, 'sort_order', FILTER_SANITIZE_STRING) ?? 'ASC';
-$search = filter_input(INPUT_GET, 'search', FILTER_SANITIZE_STRING) ?? '';
+$sort_by = trim($_GET['sort_by'] ?? 'id');
+$sort_order = trim($_GET['sort_order'] ?? 'ASC');
+$search = trim($_GET['search'] ?? '');
 
 $items_per_page = 20;
 $offset = ($page - 1) * $items_per_page;

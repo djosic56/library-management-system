@@ -5,8 +5,12 @@
  * Initializes the application and provides access to core services
  */
 
-// Load Composer autoloader
-require_once __DIR__ . '/vendor/autoload.php';
+// Load autoloader (try Composer first, fallback to custom autoloader)
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+} else {
+    require_once __DIR__ . '/autoload.php';
+}
 
 // Load legacy config (for backward compatibility)
 require_once __DIR__ . '/config.php';

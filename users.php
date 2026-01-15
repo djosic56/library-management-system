@@ -7,10 +7,10 @@ require_admin();
 try {
 	// Pagination and sorting
 	$page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, ['options' => ['default' => 1, 'min_range' => 1]]) ?? 1;
-	$sort_by = filter_input(INPUT_GET, 'sort_by', FILTER_SANITIZE_STRING) ?? 'timestamp';
-	$sort_order = filter_input(INPUT_GET, 'sort_order', FILTER_SANITIZE_STRING) ?? 'DESC';
-	$filter_action = filter_input(INPUT_GET, 'filter_action', FILTER_SANITIZE_STRING) ?? '';
-	$filter_user = filter_input(INPUT_GET, 'filter_user', FILTER_SANITIZE_STRING) ?? '';
+	$sort_by = trim($_GET['sort_by'] ?? 'timestamp');
+	$sort_order = trim($_GET['sort_order'] ?? 'DESC');
+	$filter_action = trim($_GET['filter_action'] ?? '');
+	$filter_user = trim($_GET['filter_user'] ?? '');
 	
 	$offset = ($page - 1) * ITEMS_PER_PAGE;
 
