@@ -23,8 +23,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Type:** Publishing/Editorial workflow management
 - **Stack:** PHP 8+ with PDO, MySQL, Bootstrap 5, jQuery
-- **Database:** `jsistem_ap` (local) / `jsistem_apcl` (production server)
-- **Server:** Windows environment (D:\home\sites\j-sistem\web\ap_claude)
+- **Database:** `jsistem_ap` (local) / `danko1_apcl` (production server)
+
+## Server & Deployment
+
+### Production Server
+- **SSH Alias:** `archaeonews`
+- **Connection:** `ssh archaeonews`
+- **Path:** `~/web/j-sistem.hr/public_html/ap/`
+- **Full path:** `/home/danko1/web/j-sistem.hr/public_html/ap/`
+- **Backup location:** `~/tmp/`
+- **Database:** `danko1_apcl`
+- **URL:** https://j-sistem.hr/ap/
+
+### Local Development
+- **Path:** `D:\home\sites\j-sistem\web\ap\`
+- **Deployment staging:** `D:\home\sites\j-sistem\web\ap_deploy\`
+
+### Quick Deployment Commands
+```bash
+# Upload single file
+scp file.php archaeonews:~/web/j-sistem.hr/public_html/ap/
+
+# Upload multiple files
+scp file1.php file2.php archaeonews:~/web/j-sistem.hr/public_html/ap/
+
+# Check PHP syntax on server
+ssh archaeonews "cd ~/web/j-sistem.hr/public_html/ap && php -l file.php"
+
+# Create backup before deployment
+ssh archaeonews "cd ~/web/j-sistem.hr/public_html/ap && tar -czf ~/tmp/backup_\$(date +%Y%m%d_%H%M%S).tar.gz ."
+```
+
+**IMPORTANT:** Never upload `config.php` - it contains production credentials and is already configured on server.
 
 ## Database Configuration
 
