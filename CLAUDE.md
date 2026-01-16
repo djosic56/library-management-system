@@ -277,3 +277,27 @@ Dashboard includes mailto: links to send book lists via email:
 ### Issue: Session lost after login
 **Solution:** Use `session_regenerate_id(false)` instead of `true` to preserve session data
 
+## Claude Code Dopuštenja
+
+Sljedeće operacije su odobrene i mogu se izvršavati bez dodatnog pitanja:
+
+### Deployment
+- Upload datoteka na produkcijski server putem `scp` na `archaeonews`
+- SSH naredbe za provjeru PHP sintakse na serveru
+- Provjera statusa servera
+
+### Git operacije
+- `git add` - staging datoteka
+- `git commit` - commitanje promjena
+- `git push` - push na remote (origin/main)
+- `git status`, `git diff`, `git log` - pregled stanja
+- Brisanje `.git/index.lock` ako blokira operacije
+
+### Lokalne operacije
+- Čitanje i uređivanje svih PHP, JS, CSS datoteka u projektu
+- Kreiranje privremenih datoteka za commit poruke
+- Brisanje privremenih datoteka
+
+### Napomena
+- **NIKAD** ne uploadati `config.php` na server
+- Za git lock probleme: `cmd //c "del /f /q .git\index.lock 2>nul & git ..."`
