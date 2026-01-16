@@ -84,6 +84,14 @@ class BookService implements BookServiceInterface
     }
 
     /**
+     * Get authors for multiple books (batch query to avoid N+1)
+     */
+    public function getAuthorsForBooks(array $bookIds): array
+    {
+        return $this->bookRepository->getAuthorsForBooks($bookIds);
+    }
+
+    /**
      * Validate book data
      */
     public function validateBook(array $data, bool $isEdit = false): bool

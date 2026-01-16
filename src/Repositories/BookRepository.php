@@ -165,6 +165,37 @@ class BookRepository extends Repository implements BookRepositoryInterface
     }
 
     /**
+     * Get authors for multiple books (batch query to avoid N+1)
+     * @param array $bookIds Array of book IDs
+     * @return array Associative array keyed by book_id
+     */
+    public function getAuthorsForBooks(array $bookIds): array
+    {
+        if (empty($bookIds)) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($bookIds), '?'));
+        $sql = "SELECT ba.id_book, a.id, a.email, CONCAT(a.fname, ' ', a.name) as name
+                FROM author a
+                JOIN book_author ba ON a.id = ba.id_author
+                WHERE ba.id_book IN ($placeholders)
+                ORDER BY ba.id_book, a.name";
+
+        $results = $this->query($sql, $bookIds);
+
+        // Group by book_id
+        $grouped = [];
+        foreach ($results as $row) {
+            $bookId = $row['id_book'];
+            unset($row['id_book']);
+            $grouped[$bookId][] = $row;
+        }
+
+        return $grouped;
+    }
+
+    /**
      * Add author to book
      */
     public function addAuthor(int $bookId, int $authorId, int $tipId = 1): bool

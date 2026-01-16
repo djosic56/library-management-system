@@ -49,9 +49,13 @@ try {
 	// Get recent authors
 	$recent_authors = $authorService->getRecent(5);
 
-	// Fetch authors for each book
+	// Batch fetch authors for all books (avoids N+1 query problem)
+	$bookIds = array_column($books, 'id');
+	$authorsMap = $bookService->getAuthorsForBooks($bookIds);
+
+	// Assign authors to each book
 	foreach ($books as &$book) {
-		$book['authors_list'] = $bookService->getBookAuthors($book['id']);
+		$book['authors_list'] = $authorsMap[$book['id']] ?? [];
 		$book['authors'] = !empty($book['authors_list']) ? implode(', ', array_column($book['authors_list'], 'name')) : 'None';
 		$book['note'] = $book['note'] ?? '';
 	}
