@@ -512,7 +512,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 										data-id_formating="<?php echo $book['id_formating']; ?>"
 										data-invoice="<?php echo $book['invoice']; ?>"
 										data-note="<?php echo htmlspecialchars($book['note']); ?>"
-										data-authors='<?php echo htmlspecialchars(json_encode($book['authors_list'] ?? [])); ?>'
+										data-authors='<?php echo htmlspecialchars(json_encode($book['authors_list'] ?? [], JSON_HEX_APOS | JSON_HEX_QUOT)); ?>'
 										title="Edit">
 									<i class="bi bi-pencil"></i>
 								</button>

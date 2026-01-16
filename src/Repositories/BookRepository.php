@@ -34,7 +34,7 @@ class BookRepository extends Repository implements BookRepositoryInterface
                        b.id_status, b.id_formating, b.invoice, b.note,
                        s.name as status_name,
                        f.shortname as format_shortname,
-                       GROUP_CONCAT(CONCAT(a.fname, ' ', a.name) SEPARATOR ', ') as authors
+                       COALESCE(GROUP_CONCAT(CONCAT(a.fname, ' ', a.name) SEPARATOR ', '), '') as authors
                 FROM book b
                 LEFT JOIN status s ON b.id_status = s.id
                 LEFT JOIN formating f ON b.id_formating = f.id
@@ -139,7 +139,7 @@ class BookRepository extends Repository implements BookRepositoryInterface
                        s.name as status_name,
                        f.name as format_name,
                        f.shortname as format_shortname,
-                       GROUP_CONCAT(CONCAT(a.fname, ' ', a.name) SEPARATOR ', ') as authors
+                       COALESCE(GROUP_CONCAT(CONCAT(a.fname, ' ', a.name) SEPARATOR ', '), '') as authors
                 FROM book b
                 LEFT JOIN status s ON b.id_status = s.id
                 LEFT JOIN formating f ON b.id_formating = f.id
@@ -188,7 +188,7 @@ class BookRepository extends Repository implements BookRepositoryInterface
     public function getBooksByStatus(int $statusId, ?string $fromDate = null): array
     {
         $sql = "SELECT b.id, b.title, b.pages,
-                       GROUP_CONCAT(CONCAT(a.fname, ' ', a.name) SEPARATOR ', ') as authors,
+                       COALESCE(GROUP_CONCAT(CONCAT(a.fname, ' ', a.name) SEPARATOR ', '), '') as authors,
                        (SELECT h.inserted
                         FROM history h
                         WHERE h.id_book = b.id
@@ -217,7 +217,7 @@ class BookRepository extends Repository implements BookRepositoryInterface
     public function getBooksByStatusWithoutInvoice(int $statusId, ?string $fromDate = null): array
     {
         $sql = "SELECT b.id, b.title, b.pages,
-                       GROUP_CONCAT(CONCAT(a.fname, ' ', a.name) SEPARATOR ', ') as authors,
+                       COALESCE(GROUP_CONCAT(CONCAT(a.fname, ' ', a.name) SEPARATOR ', '), '') as authors,
                        (SELECT h.inserted
                         FROM history h
                         WHERE h.id_book = b.id
