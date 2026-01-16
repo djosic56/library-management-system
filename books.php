@@ -1007,12 +1007,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 				success: function(response) {
 					if (response.success && response.history.length > 0) {
 						let html = '<div class="table-responsive"><table class="table table-striped">';
-						html += '<thead><tr><th>Date</th><th>Status</th><th>Note</th></tr></thead><tbody>';
+						html += '<thead><tr><th>Date</th><th>Status</th></tr></thead><tbody>';
 						response.history.forEach(function(item) {
 							html += '<tr>';
 							html += '<td>' + item.inserted + '</td>';
 							html += '<td><span class="badge bg-primary">' + item.status_name + '</span></td>';
-							html += '<td>' + (item.note || '-') + '</td>';
 							html += '</tr>';
 						});
 						html += '</tbody></table></div>';

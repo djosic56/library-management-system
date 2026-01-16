@@ -14,14 +14,14 @@ if (!$book_id) {
 }
 
 try {
-	$stmt = $pdo->prepare("SELECT h.id, h.inserted, s.name as status_name, s.note
+	$stmt = $pdo->prepare("SELECT h.id, h.inserted, s.name as status_name
 						   FROM history h
 						   JOIN status s ON h.id_status = s.id
 						   WHERE h.id_book = ?
 						   ORDER BY h.inserted DESC");
 	$stmt->execute([$book_id]);
 	$history = $stmt->fetchAll();
-	
+
 	echo json_encode([
 		'success' => true,
 		'history' => $history
