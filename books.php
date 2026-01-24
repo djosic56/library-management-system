@@ -59,6 +59,7 @@ try {
 		$book['authors'] = !empty($book['authors_list']) ? implode(', ', array_column($book['authors_list'], 'name')) : 'None';
 		$book['note'] = $book['note'] ?? '';
 	}
+	unset($book); // IMPORTANT: Unset reference to avoid duplicate rows in subsequent foreach
 } catch (Exception $e) {
 	$error = "Database error occurred.";
 	error_log("Database error in books.php: " . $e->getMessage());
