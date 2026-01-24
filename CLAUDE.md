@@ -312,3 +312,16 @@ Sljedeće operacije su odobrene i mogu se izvršavati bez dodatnog pitanja:
 - **Uloga:** Developer/Administrator projekta
 - **Lokacija slike:** `D:\JSISTEM\danko.jpg`
 - **Fun fact:** Ljubitelj čili paprika 🌶️
+
+## Razvojno računalo
+
+- **CPU:** Intel Core i5-10600K @ 4.10GHz
+- **RAM:** 16 GB (2x 8GB)
+- **GPU:** NVIDIA Quadro P1000
+- **Sistemski disk:** Samsung SSD 980 PRO 1TB
+- **Storage:**
+  - WDC WD40EFRX 4TB (interni)
+  - WDC WD2005FBYZ 2TB (interni)
+  - WD My Book 4TB (eksterni)
+  - WD My Passport 5TB (eksterni)
+  - WD Elements 5TB (eksterni)
