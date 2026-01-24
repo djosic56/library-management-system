@@ -285,6 +285,7 @@ Sljedeće operacije su odobrene i mogu se izvršavati bez dodatnog pitanja:
 - Upload datoteka na produkcijski server putem `scp` na `archaeonews`
 - SSH naredbe za provjeru PHP sintakse na serveru
 - Provjera statusa servera
+- MySQL upiti na serveru za dijagnostiku i debug
 
 ### Git operacije
 - `git add` - staging datoteka
@@ -298,6 +299,16 @@ Sljedeće operacije su odobrene i mogu se izvršavati bez dodatnog pitanja:
 - Kreiranje privremenih datoteka za commit poruke
 - Brisanje privremenih datoteka
 
+### Lokalni resursi
+- Čitanje slika s lokalnog diska (npr. `D:\JSISTEM\`)
+
 ### Napomena
 - **NIKAD** ne uploadati `config.php` na server
 - Za git lock probleme: `cmd //c "del /f /q .git\index.lock 2>nul & git ..."`
+
+## Korisnik
+
+- **Ime:** Danko
+- **Uloga:** Developer/Administrator projekta
+- **Lokacija slike:** `D:\JSISTEM\danko.jpg`
+- **Fun fact:** Ljubitelj čili paprika 🌶️
