@@ -302,6 +302,17 @@ Sljedeće operacije su odobrene i mogu se izvršavati bez dodatnog pitanja:
 ### Lokalni resursi
 - Čitanje slika s lokalnog diska (npr. `D:\JSISTEM\`)
 
+### Sistemske informacije
+- `wmic` naredbe za pregled hardvera (CPU, RAM, diskovi, GPU, matična ploča)
+- `systeminfo` za sistemske informacije
+- `tasklist`, `taskkill` za upravljanje procesima
+
+### Web pretraživanje
+- Pretraživanje cijena i dostupnosti hardvera na hrvatskim trgovinama (HGspot, Instar, Links, Protis, Nabava.net)
+- Dohvaćanje cijena s web stranica (WebFetch)
+- Pretraživanje specifikacija hardvera
+- Usporedba proizvoda i preporuke konfiguracija
+
 ### Napomena
 - **NIKAD** ne uploadati `config.php` na server
 - Za git lock probleme: `cmd //c "del /f /q .git\index.lock 2>nul & git ..."`
