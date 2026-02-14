@@ -6,7 +6,7 @@ require_login();
 <style type="text/css">
 	.nav-icon { width:20px; height:20px; vertical-align:-2px; margin-right:4px; }
 </style>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
 	<div class="container-fluid">
 		<a class="navbar-brand" href="index.php">Library</a>
 		<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,7 +41,16 @@ require_login();
 						Graphycs
 					</a>
 				</li>
-				<?php if (is_admin()): ?>
+				<li class="nav-item">
+					<a class="nav-link" href="https://transfer.j-sistem.hr/" target="_blank">
+						<svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+							<path d="M4 12h16M14 6l6 6-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+							<path d="M20 12H8M10 18l-6-6 6-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+						</svg>
+						Transfer
+					</a>
+				</li>
+			<?php if (is_admin()): ?>
 				<li class="nav-item dropdown">
 					<a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
 						<i class="bi bi-shield-check"></i> Admin
@@ -66,6 +75,12 @@ require_login();
 						<li>
 							<a class="dropdown-item" href="backup.php">
 								<i class="bi bi-download"></i> Database Backup
+							</a>
+						</li>
+						<li><hr class="dropdown-divider"></li>
+						<li>
+							<a class="dropdown-item" href="https://transfer.j-sistem.hr/admin" target="_blank">
+								<i class="bi bi-arrow-left-right"></i> Transfer
 							</a>
 						</li>
 					</ul>
