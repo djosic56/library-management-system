@@ -50,19 +50,19 @@ class PdfJobStore
     {
         $error = $upload['error'] ?? UPLOAD_ERR_NO_FILE;
         if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
-            throw self::invalid('pdf', 'PDF je prevelik — najviše 200 MB');
+            throw self::invalid('pdf', 'The PDF is too large — maximum 200 MB');
         }
         if ($error !== UPLOAD_ERR_OK || empty($upload['tmp_name']) || !is_file($upload['tmp_name'])) {
-            throw self::invalid('pdf', 'Upload nije uspio — pokušaj ponovno');
+            throw self::invalid('pdf', 'Upload failed — please try again');
         }
         if (filesize($upload['tmp_name']) > self::MAX_BYTES) {
-            throw self::invalid('pdf', 'PDF je prevelik — najviše 200 MB');
+            throw self::invalid('pdf', 'The PDF is too large — maximum 200 MB');
         }
         if (file_get_contents($upload['tmp_name'], false, null, 0, 5) !== '%PDF-') {
-            throw self::invalid('pdf', 'Datoteka nije PDF');
+            throw self::invalid('pdf', 'The file is not a PDF');
         }
         if ($lang !== null && $lang !== '' && !preg_match('/^[a-z]{2}(-[A-Z]{2})?$/', $lang)) {
-            throw self::invalid('lang', 'Neispravan jezik');
+            throw self::invalid('lang', 'Invalid language code');
         }
 
         $id = bin2hex(random_bytes(16));
@@ -87,14 +87,14 @@ class PdfJobStore
     public function start(string $id, string $phase): void
     {
         if (!in_array($phase, ['phase1', 'phase2'], true)) {
-            throw self::invalid('phase', 'Nepoznata faza');
+            throw self::invalid('phase', 'Unknown phase');
         }
         $state = $this->status($id)['state'] ?? '';
         if (in_array($state, self::RUNNING, true) && isset($this->status($id)['queued_at'])) {
-            throw self::invalid('phase', 'Obrada već radi');
+            throw self::invalid('phase', 'Processing is already running');
         }
         if (in_array($state, ['phase1', 'phase2'], true)) {
-            throw self::invalid('phase', 'Obrada već radi');
+            throw self::invalid('phase', 'Processing is already running');
         }
         // Očisti tragove prethodne faze: stari heartbeat bi izgledao kao mrtav proces, a stari
         // PDF/UA rezultat kao rezultat nove obrade
@@ -117,7 +117,7 @@ class PdfJobStore
             if ($last === null || time() - $last > self::STALE_SECONDS) {
                 $status = $this->mergeJson($path, [
                     'state' => 'failed',
-                    'message' => 'Obrada je prekinuta (proces ne radi). Pokreni ponovno.',
+                    'message' => 'Processing was interrupted (the process is not running). Please start it again.',
                 ]);
             }
         }
@@ -147,7 +147,7 @@ class PdfJobStore
         if (array_key_exists('language', $fields)) {
             $lang = $fields['language'];
             if ($lang !== null && $lang !== '' && !preg_match('/^[a-z]{2}$/', (string) $lang)) {
-                throw self::invalid('language', 'Neispravan jezik');
+                throw self::invalid('language', 'Invalid language code');
             }
             $clean['language'] = ($lang === '' ? null : $lang);
         }
@@ -170,7 +170,7 @@ class PdfJobStore
     {
         $this->assertEditable($id);
         if ($lang !== null && $lang !== '' && !preg_match('/^[a-z]{2}(-[A-Z]{2})?$/', $lang)) {
-            throw self::invalid('lang', 'Neispravan jezik');
+            throw self::invalid('lang', 'Invalid language code');
         }
         $job = null;
         $this->withLockedJson($this->dir($id) . '/job.json', function (array $data) use ($title, $lang, &$job) {
@@ -203,7 +203,7 @@ class PdfJobStore
     {
         $dir = $this->dir($id);
         if (in_array($this->status($id)['state'] ?? '', self::RUNNING, true)) {
-            throw self::invalid('state', 'Posao se ne može obrisati dok obrada radi');
+            throw self::invalid('state', 'A job cannot be deleted while it is processing');
         }
         $this->removeTree($dir);
     }
@@ -238,7 +238,7 @@ class PdfJobStore
     private function assertEditable(string $id): void
     {
         if (in_array($this->status($id)['state'] ?? '', ['queued', 'phase2'], true)) {
-            throw self::invalid('state', 'PDF se upravo izrađuje — izmjene nisu moguće dok ne završi');
+            throw self::invalid('state', 'The PDF is being built — edits are not possible until it finishes');
         }
     }
 

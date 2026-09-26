@@ -4,8 +4,8 @@
 	const id = root.dataset.id;
 	const csrf = root.dataset.csrf;
 	const RUNNING = ['queued', 'phase1', 'phase2'];
-	const LABELS = { queued: 'Čeka na red…', phase1: 'AI opisuje slike…', review: 'Pregledaj opise, pa „Napravi PDF“.',
-		phase2: 'Izrađujem PDF i provjeravam…', done: 'Obrada završena.', failed: 'Greška u obradi.' };
+	const LABELS = { queued: 'Waiting in queue…', phase1: 'AI is describing the images…', review: 'Review the descriptions, then click “Build PDF”.',
+		phase2: 'Building and checking the PDF…', done: 'Processing finished.', failed: 'Processing error.' };
 
 	async function api(params, method = 'POST') {
 		let url = 'pdf_api.php', opts = { method, credentials: 'same-origin' };
@@ -20,15 +20,15 @@
 		let data;
 		try { data = await res.json(); } catch (e) { data = null; }
 		if (res.status === 401) {
-			const err = new Error('Prijava je istekla — prijavi se ponovno (izmjena NIJE spremljena)');
+			const err = new Error('Your session has expired — please log in again (the change was NOT saved)');
 			err.auth = true;
 			throw err;
 		}
 		if (data === null) {
-			throw new Error(res.status === 413 ? 'Zahtjev je prevelik (HTTP 413)'
-				: 'Greška na serveru (HTTP ' + res.status + ') — izmjena NIJE spremljena');
+			throw new Error(res.status === 413 ? 'Request too large (HTTP 413)'
+				: 'Server error (HTTP ' + res.status + ') — the change was NOT saved');
 		}
-		if (!res.ok) throw new Error(data.error || 'Greška');
+		if (!res.ok) throw new Error(data.error || 'Error');
 		return data;
 	}
 
@@ -40,7 +40,7 @@
 		if (pending[key]) clearTimeout(pending[key].timer);
 		const run = async () => {
 			delete pending[key];
-			try { await fn(); marker.textContent = 'spremljeno'; marker.className = 'save-state text-success ms-auto'; }
+			try { await fn(); marker.textContent = 'saved'; marker.className = 'save-state text-success ms-auto'; }
 			catch (e) { marker.textContent = e.message; marker.className = 'save-state text-danger ms-auto'; throw e; }
 		};
 		pending[key] = { timer: setTimeout(() => run().catch(() => {}), 800), run };
@@ -102,14 +102,14 @@
 
 		if (state === 'done') {
 			let verdict;
-			if (status.pdfua_ok === true) verdict = '<div class="alert alert-success">PDF/UA-1 prolazi ✔</div>';
-			else if (status.pdfua_ok === false) verdict = '<div class="alert alert-warning">Obrada završena — PDF/UA provjera nije prošla:<ul>'
+			if (status.pdfua_ok === true) verdict = '<div class="alert alert-success">PDF/UA-1 passes ✔</div>';
+			else if (status.pdfua_ok === false) verdict = '<div class="alert alert-warning">Processing finished — the PDF/UA check did not pass:<ul>'
 				+ (status.pdfua_failed || []).map(f => '<li><b>' + esc(f[0]) + '</b> (' + esc(String(f[1])) + '×) ' + esc(f[2]) + '</li>').join('') + '</ul></div>';
-			else verdict = '<div class="alert alert-secondary">PDF/UA provjera nije izvršena.</div>';
+			else verdict = '<div class="alert alert-secondary">The PDF/UA check was not run.</div>';
 			const q = new URLSearchParams({ action: 'download', id });
 			resultBox.innerHTML = verdict
-				+ '<a class="btn btn-primary me-2" href="pdf_api.php?' + q + '&kind=output"><i class="bi bi-file-earmark-pdf"></i> Preuzmi PDF</a>'
-				+ '<a class="btn btn-outline-primary" href="pdf_api.php?' + q + '&kind=report"><i class="bi bi-file-text"></i> Izvještaj</a>';
+				+ '<a class="btn btn-primary me-2" href="pdf_api.php?' + q + '&kind=output"><i class="bi bi-file-earmark-pdf"></i> Download PDF</a>'
+				+ '<a class="btn btn-outline-primary" href="pdf_api.php?' + q + '&kind=report"><i class="bi bi-file-text"></i> Report</a>';
 			resultBox.classList.remove('d-none');
 		} else {
 			resultBox.classList.add('d-none');
@@ -129,7 +129,7 @@
 			render(data.status, data.summary);
 			if (running) setTimeout(poll, 3000);
 		} catch (e) {
-			statusBox.textContent = e.auth ? e.message : e.message + ' — pokušavam ponovno…';
+			statusBox.textContent = e.auth ? e.message : e.message + ' — retrying…';
 			statusBox.className = 'alert alert-danger';
 			if (!e.auth) setTimeout(poll, 10000);   // prekid mreže na mobitelu: nastavi pratiti
 		}
@@ -146,7 +146,7 @@
 	});
 
 	del.addEventListener('click', async () => {
-		if (!confirm('Obrisati posao „' + del.dataset.name + '“ i sve njegove datoteke? Ovo se ne može poništiti.')) return;
+		if (!confirm('Delete job “' + del.dataset.name + '” and all its files? This cannot be undone.')) return;
 		try { await api({ action: 'delete' }); location.href = 'pdf.php'; }
 		catch (e) { alert(e.message); }
 	});

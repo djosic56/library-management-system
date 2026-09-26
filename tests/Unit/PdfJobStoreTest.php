@@ -147,7 +147,7 @@ class PdfJobStoreTest extends TestCase
         $status = $this->store()->status($id);
 
         $this->assertSame('failed', $status['state']);
-        $this->assertStringContainsString('prekinuta', $status['message']);
+        $this->assertStringContainsString('interrupted', $status['message']);
     }
 
     public function testQueuedJobThatNeverStartedBecomesFailed(): void
