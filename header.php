@@ -51,6 +51,17 @@ require_login();
 					</a>
 				</li>
 			<?php if (is_admin()): ?>
+				<li class="nav-item">
+					<a class="nav-link" href="pdf.php">
+						<svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+							<path d="M6 2h9l5 5v15H6z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+							<path d="M14 2v6h6M9 14h6M9 18h4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+						</svg>
+						PDF
+					</a>
+				</li>
+			<?php endif; ?>
+			<?php if (is_admin()): ?>
 				<li class="nav-item dropdown">
 					<a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
 						<i class="bi bi-shield-check"></i> Admin
