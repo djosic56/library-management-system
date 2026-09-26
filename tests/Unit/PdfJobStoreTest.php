@@ -101,6 +101,14 @@ class PdfJobStoreTest extends TestCase
         }
     }
 
+    public function testPostDroppedByPostMaxSizeIsRecognised(): void
+    {
+        // PHP drops both $_POST and $_FILES (incl. csrf_token) when the body exceeds post_max_size
+        $this->assertTrue(PdfJobStore::isOversizedPost(['CONTENT_LENGTH' => '250000000'], [], []));
+        $this->assertFalse(PdfJobStore::isOversizedPost(['CONTENT_LENGTH' => '1200'], ['csrf_token' => 'x'], []));
+        $this->assertFalse(PdfJobStore::isOversizedPost([], [], []));
+    }
+
     public function testStartLaunchesAndRefusesWhileRunning(): void
     {
         $id = $this->job();
@@ -110,6 +118,25 @@ class PdfJobStoreTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $this->store()->start($id, 'phase2');
+    }
+
+    public function testStartAfterLongReviewIsNotMistakenForDeadProcess(): void
+    {
+        $id = $this->job();
+        // phase 1 finished hours ago: its heartbeat, pid and result fields are still in status.json
+        file_put_contents("{$this->root}/$id/status.json", json_encode([
+            'state' => 'review', 'pid' => 4242, 'finished' => 'x',
+            'heartbeat' => gmdate('Y-m-d\TH:i:s.000000\Z', time() - 8 * 3600),
+            'pdfua_ok' => true, 'pdfua_failed' => [],
+        ]));
+
+        $this->store()->start($id, 'phase2');
+        $status = $this->store()->status($id);
+
+        $this->assertSame('queued', $status['state']);
+        $this->assertNull($status['heartbeat'] ?? null);
+        $this->assertNull($status['pid'] ?? null);
+        $this->assertNull($status['pdfua_ok'] ?? null, 'old PDF/UA result must not survive a re-run');
     }
 
     public function testStaleRunningJobBecomesFailed(): void

@@ -7,12 +7,15 @@ require_admin();
 
 use App\Exceptions\ValidationException;
 use App\Repositories\PdfJobRepository;
+use App\Services\PdfJobStore;
 
 $store = pdf_job_store();
 $repo = new PdfJobRepository(getDatabase()->getConnection());
 $error = null;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && PdfJobStore::isOversizedPost($_SERVER, $_POST, $_FILES)) {
+    $error = 'PDF je prevelik — najviše 200 MB';
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     try {
         if (empty($_FILES['pdf'])) {

@@ -28,6 +28,15 @@ class PdfJobStore
         return (bool) preg_match('/^[0-9a-f]{32}$/', $id);
     }
 
+    /**
+     * POST veći od post_max_size: PHP odbaci i $_POST i $_FILES (pa i csrf_token) — prepoznaj
+     * to prije CSRF provjere, da korisnik dobije „prevelik“ umjesto „CSRF 403“.
+     */
+    public static function isOversizedPost(array $server, array $post, array $files): bool
+    {
+        return empty($post) && empty($files) && (int) ($server['CONTENT_LENGTH'] ?? 0) > 0;
+    }
+
     public function dir(string $id): string
     {
         $dir = $this->jobsRoot . '/' . $id;
@@ -87,8 +96,13 @@ class PdfJobStore
         if (in_array($state, ['phase1', 'phase2'], true)) {
             throw self::invalid('phase', 'Obrada već radi');
         }
-        $this->mergeJson($this->dir($id) . '/status.json',
-            ['state' => 'queued', 'queued_at' => self::now(), 'message' => null]);
+        // Očisti tragove prethodne faze: stari heartbeat bi izgledao kao mrtav proces, a stari
+        // PDF/UA rezultat kao rezultat nove obrade
+        $this->mergeJson($this->dir($id) . '/status.json', [
+            'state' => 'queued', 'queued_at' => self::now(), 'message' => null,
+            'heartbeat' => null, 'pid' => null, 'finished' => null, 'progress' => null,
+            'pdfua_ok' => null, 'pdfua_failed' => null,
+        ]);
         ($this->launcher)($id, $phase);
     }
 
@@ -97,8 +111,10 @@ class PdfJobStore
         $path = $this->dir($id) . '/status.json';
         $status = $this->readJson($path, ['state' => 'queued']);
         if (in_array($status['state'] ?? '', self::RUNNING, true)) {
-            $last = $status['heartbeat'] ?? $status['queued_at'] ?? $status['created'] ?? null;
-            if ($last === null || time() - strtotime($last) > self::STALE_SECONDS) {
+            $times = array_filter(array_map(fn ($k) => isset($status[$k]) ? strtotime($status[$k]) : null,
+                ['heartbeat', 'queued_at', 'created']));
+            $last = $times ? max($times) : null;
+            if ($last === null || time() - $last > self::STALE_SECONDS) {
                 $status = $this->mergeJson($path, [
                     'state' => 'failed',
                     'message' => 'Obrada je prekinuta (proces ne radi). Pokreni ponovno.',

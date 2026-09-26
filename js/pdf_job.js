@@ -16,26 +16,38 @@
 		} else {
 			url += '?' + new URLSearchParams({ ...params, id });
 		}
-		const res = await fetch(url, opts);
+		const res = await fetch(url, opts);   // mrežna greška → TypeError (poll ponavlja)
 		let data;
 		try { data = await res.json(); } catch (e) { data = null; }
-		if (res.status === 401 || data === null) {
-			throw new Error('Prijava je istekla — prijavi se ponovno (izmjena NIJE spremljena)');
+		if (res.status === 401) {
+			const err = new Error('Prijava je istekla — prijavi se ponovno (izmjena NIJE spremljena)');
+			err.auth = true;
+			throw err;
+		}
+		if (data === null) {
+			throw new Error(res.status === 413 ? 'Zahtjev je prevelik (HTTP 413)'
+				: 'Greška na serveru (HTTP ' + res.status + ') — izmjena NIJE spremljena');
 		}
 		if (!res.ok) throw new Error(data.error || 'Greška');
 		return data;
 	}
 
 	// --- spremanje (debounce 800 ms, indikator po kartici) ---
-	const timers = {};
+	const pending = {};   // key → {timer, run}; flushSaves() ih šalje odmah (prije „Napravi PDF“)
 	function schedule(key, marker, fn) {
 		marker.textContent = '…';
 		marker.className = 'save-state text-muted ms-auto';
-		clearTimeout(timers[key]);
-		timers[key] = setTimeout(async () => {
+		if (pending[key]) clearTimeout(pending[key].timer);
+		const run = async () => {
+			delete pending[key];
 			try { await fn(); marker.textContent = 'spremljeno'; marker.className = 'save-state text-success ms-auto'; }
-			catch (e) { marker.textContent = e.message; marker.className = 'save-state text-danger ms-auto'; }
-		}, 800);
+			catch (e) { marker.textContent = e.message; marker.className = 'save-state text-danger ms-auto'; throw e; }
+		};
+		pending[key] = { timer: setTimeout(() => run().catch(() => {}), 800), run };
+	}
+	async function flushSaves() {
+		const runs = Object.values(pending).map(p => { clearTimeout(p.timer); return p.run(); });
+		await Promise.all(runs);   // baci grešku ako ijedno spremanje ne uspije
 	}
 
 	document.querySelectorAll('.image-card').forEach(card => {
@@ -117,15 +129,19 @@
 			render(data.status, data.summary);
 			if (running) setTimeout(poll, 3000);
 		} catch (e) {
-			statusBox.textContent = e.message;
+			statusBox.textContent = e.auth ? e.message : e.message + ' — pokušavam ponovno…';
 			statusBox.className = 'alert alert-danger';
+			if (!e.auth) setTimeout(poll, 10000);   // prekid mreže na mobitelu: nastavi pratiti
 		}
 	}
 	poll();
 
 	makePdf.addEventListener('click', async () => {
 		makePdf.disabled = true;
-		try { await api({ action: 'start_phase2' }); wasRunning = true; poll(); }
+		try {
+			await flushSaves();   // zadnja izmjena mora ući u PDF
+			await api({ action: 'start_phase2' }); wasRunning = true; poll();
+		}
 		catch (e) { statusBox.textContent = e.message; statusBox.className = 'alert alert-danger'; makePdf.disabled = false; }
 	});
 
