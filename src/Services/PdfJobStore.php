@@ -196,7 +196,8 @@ class PdfJobStore
     public static function launchRunner(string $id, string $phase): void
     {
         $jobDir = PDF_JOBS_ROOT . '/' . $id;
-        $log = $jobDir . '/log.txt';
+        // izlaz procesa zasebno: log.txt piše Python (na Windowsu dva pisača istog fajla = PermissionError)
+        $log = $jobDir . '/runner_output.txt';
         if (PHP_OS_FAMILY === 'Windows') {
             $cmd = sprintf('start "" /B %s %s %s %s >> %s 2>&1',
                 escapeshellarg(PDF_PYTHON), escapeshellarg(PDF_TOOL_DIR . '/job_runner.py'),
