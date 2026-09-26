@@ -76,7 +76,7 @@ try {
             $path = $store->filePath($id, $kind);
             $name = preg_replace('/[^A-Za-z0-9._-]+/', '_', $store->job($id)['name'] ?? 'dokument');
             header('Content-Type: ' . ($kind === 'output' ? 'application/pdf' : 'text/html; charset=utf-8'));
-            header('Content-Disposition: attachment; filename="' . $name . ($kind === 'output' ? '_pristupacno.pdf' : '_izvjestaj.html') . '"');
+            header('Content-Disposition: attachment; filename="' . $name . ($kind === 'output' ? '_accessible.pdf' : '_report.html') . '"');
             header('Content-Length: ' . filesize($path));
             header('Cache-Control: no-store');
             readfile($path);
