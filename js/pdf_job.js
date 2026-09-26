@@ -137,6 +137,11 @@
 	poll();
 
 	makePdf.addEventListener('click', async () => {
+		const title = document.getElementById('doc-title');
+		if (title && !title.value.trim()
+			&& !confirm('The document has no title — PDF/UA validation will fail without one. Build the PDF anyway?')) {
+			return;
+		}
 		makePdf.disabled = true;
 		try {
 			await flushSaves();   // zadnja izmjena mora ući u PDF

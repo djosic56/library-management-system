@@ -176,6 +176,7 @@ class PdfJobStore
         $this->withLockedJson($this->dir($id) . '/job.json', function (array $data) use ($title, $lang, &$job) {
             $data['title'] = ($title === null || trim($title) === '') ? null : mb_substr(trim($title), 0, 500);
             $data['lang'] = $lang ?: null;
+            $data['title_source'] = 'user';   // korisnik ga je upisao/potvrdio — više nije prijedlog
             return $job = $data;
         });
         return $job;

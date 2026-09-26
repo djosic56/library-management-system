@@ -61,6 +61,13 @@ $langs = ['' => '—', 'en' => 'en', 'hr' => 'hr', 'de' => 'de', 'fr' => 'fr', '
 				<div class="col-12 col-md-8">
 					<label class="form-label" for="doc-title">Document title (required by PDF/UA)</label>
 					<input class="form-control doc-field" id="doc-title" value="<?php echo htmlspecialchars($job['title'] ?? ''); ?>">
+					<?php $source = $job['title_source'] ?? ''; ?>
+					<div class="form-text" id="title-hint">
+						<?php if ($source === 'title_page'): ?>Suggested from the book's title page — please check.
+						<?php elseif ($source === 'pdf'): ?>Taken from the PDF metadata — please check, it is sometimes copied from another book.
+						<?php elseif (empty($job['title'])): ?><span class="text-danger">No title — PDF/UA requires one.</span>
+						<?php endif; ?>
+					</div>
 				</div>
 				<div class="col-6 col-md-2">
 					<label class="form-label" for="doc-lang">Language</label>

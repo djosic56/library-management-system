@@ -139,6 +139,19 @@ class PdfJobStoreTest extends TestCase
         $this->assertNull($status['pdfua_ok'] ?? null, 'old PDF/UA result must not survive a re-run');
     }
 
+    public function testTitleTypedByUserIsNoLongerMarkedAsSuggestion(): void
+    {
+        $id = $this->job();
+        $jobFile = "{$this->root}/$id/job.json";
+        $job = json_decode(file_get_contents($jobFile), true);
+        $job['title_source'] = 'title_page';
+        file_put_contents($jobFile, json_encode($job));
+
+        $updated = $this->store()->updateDocument($id, 'Ritual in the Roman World', 'en');
+
+        $this->assertSame('user', $updated['title_source']);
+    }
+
     public function testStaleRunningJobBecomesFailed(): void
     {
         $id = $this->job();
