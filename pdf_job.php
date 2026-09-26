@@ -90,7 +90,7 @@ $langs = ['' => '—', 'en' => 'en', 'hr' => 'hr', 'de' => 'de', 'fr' => 'fr', '
 					<img loading="lazy" class="card-img-top thumb" alt=""
 						src="pdf_api.php?action=thumb&amp;id=<?php echo urlencode($id); ?>&amp;xref=<?php echo $x; ?>">
 					<div class="card-body">
-						<div class="small text-muted mb-1">p. <?php echo (int) ($img['page'] ?? 0); ?>
+						<div class="small text-muted mb-1">p. <?php echo htmlspecialchars((string) ($img['page_label'] ?? $img['page'] ?? '')); ?>
 							<?php if (!empty($img['caption'])): ?> · <?php echo htmlspecialchars($img['caption']); ?><?php endif; ?></div>
 						<?php if (!empty($img['existing_alt'])): ?>
 							<div class="small mb-2"><span class="badge bg-secondary"><?php echo htmlspecialchars($img['existing_alt_status'] ?? ''); ?></span>
