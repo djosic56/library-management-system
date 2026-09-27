@@ -209,7 +209,23 @@ class PdfJobStore
         $this->removeTree($dir);
     }
 
-    /** Default launcher: runner u pozadini, odvojen od web zahtjeva. */
+    /**
+     * Launcher za server na kojem PHP ne smije pokretati procese (disable_functions):
+     * zapiše request.json, a job_worker.py (korisnički cron) pokrene runner.
+     */
+    public static function requestLauncher(string $jobsRoot): callable
+    {
+        return function (string $id, string $phase) use ($jobsRoot): void {
+            $path = $jobsRoot . '/' . $id . '/request.json';
+            $tmp = $path . '.' . bin2hex(random_bytes(4)) . '.tmp';
+            file_put_contents($tmp, json_encode(['phase' => $phase, 'requested' => self::now()]));
+            if (!rename($tmp, $path)) {
+                throw new \RuntimeException('Ne mogu zatražiti obradu');
+            }
+        };
+    }
+
+    /** Default launcher (lokalno): runner u pozadini, odvojen od web zahtjeva. */
     public static function launchRunner(string $id, string $phase): void
     {
         $jobDir = PDF_JOBS_ROOT . '/' . $id;

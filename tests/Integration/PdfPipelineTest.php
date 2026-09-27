@@ -86,4 +86,27 @@ class PdfPipelineTest extends TestCase
         $summary = json_decode(file_get_contents(PDF_JOBS_ROOT . "/$id/fix_summary.json"), true);
         $this->assertSame(2, $summary['described']);
     }
+
+    /** Put kao na serveru (PHP bez proc_open): request.json → job_worker.py → job_runner. */
+    public function testWorkerPicksUpRequestedPhase(): void
+    {
+        $this->store = new PdfJobStore(PDF_JOBS_ROOT, PdfJobStore::requestLauncher(PDF_JOBS_ROOT));
+        $upload = ['tmp_name' => $this->samplePdf(), 'name' => 'sample.pdf', 'error' => UPLOAD_ERR_OK];
+        $id = $this->jobId = $this->store->create($upload, 'Worker', 'Test Book', 'en', null);
+        $jobFile = PDF_JOBS_ROOT . "/$id/job.json";
+        $job = json_decode(file_get_contents($jobFile), true);
+        $job['provider'] = 'offline';
+        file_put_contents($jobFile, json_encode($job));
+
+        $this->store->start($id, 'phase1');
+        $this->assertFileExists(PDF_JOBS_ROOT . "/$id/request.json");
+        exec(sprintf('cd %s && %s job_worker.py %s 3 2>&1', escapeshellarg(PDF_TOOL_DIR), PDF_PYTHON,
+            escapeshellarg(PDF_JOBS_ROOT)), $out, $rc);
+        $this->assertSame(0, $rc, implode("\n", $out));
+        $this->assertFileDoesNotExist(PDF_JOBS_ROOT . "/$id/request.json");
+
+        $status = $this->waitFor($id, ['review', 'failed']);
+        $this->assertSame('review', $status['state'], json_encode($status) . "\n"
+            . @file_get_contents(PDF_JOBS_ROOT . "/$id/runner_output.txt"));
+    }
 }

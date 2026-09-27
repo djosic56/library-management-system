@@ -120,6 +120,19 @@ class PdfJobStoreTest extends TestCase
         $this->store()->start($id, 'phase2');
     }
 
+    public function testWorkerModeWritesRequestInsteadOfStartingProcess(): void
+    {
+        // server: PHP ne smije pokretati procese — zahtjev preuzima job_worker.py (cron)
+        $store = new PdfJobStore($this->root, PdfJobStore::requestLauncher($this->root));
+        $id = $store->create($this->upload("%PDF-1.7\n..."), 'Knjiga', null, null, null);
+        $store->start($id, 'phase1');
+
+        $request = json_decode(file_get_contents("{$this->root}/$id/request.json"), true);
+        $this->assertSame('phase1', $request['phase']);
+        $this->assertSame('queued', $store->status($id)['state']);
+        $this->assertSame([], glob("{$this->root}/$id/*.tmp"), 'request is written atomically');
+    }
+
     public function testStartAfterLongReviewIsNotMistakenForDeadProcess(): void
     {
         $id = $this->job();
