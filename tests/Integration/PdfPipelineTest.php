@@ -82,7 +82,7 @@ class PdfPipelineTest extends TestCase
             . @file_get_contents(PDF_JOBS_ROOT . "/$id/log.txt"));
         $this->assertArrayHasKey('pdfua_ok', $status);
         $this->assertFileExists($this->store->filePath($id, 'output'));
-        $this->assertStringContainsString('Izvještaj', file_get_contents($this->store->filePath($id, 'report')));
+        $this->assertStringContainsString('Accessibility report', file_get_contents($this->store->filePath($id, 'report')));
         $summary = json_decode(file_get_contents(PDF_JOBS_ROOT . "/$id/fix_summary.json"), true);
         $this->assertSame(2, $summary['described']);
     }
