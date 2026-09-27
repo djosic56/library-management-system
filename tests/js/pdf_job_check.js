@@ -9,12 +9,12 @@ function el(extra = {}) {
     addEventListener: (ev, fn) => { h[ev] = fn; }, fire: (ev) => h[ev] && h[ev](), querySelector: () => el(),
     querySelectorAll: () => [] }, extra);
 }
-async function scenario(name, { saveFails = false, networkErrors = 0, click = true, title = 'A Title', confirmAnswer = true }) {
+async function scenario(name, { saveFails = false, networkErrors = 0, click = true, title = 'A Title', confirmAnswer = true, titleSource = 'user' }) {
   const calls = [];
   const textarea = el({ tagName: 'TEXTAREA', type: 'textarea', value: '', dataset: { field: 'description' } });
   const card = el({ dataset: { xref: '7', attention: '1', decorative: '0' } });
   card.querySelectorAll = () => [textarea];
-  const nodes = { 'pdf-job': el({ dataset: { id: 'a'.repeat(32), csrf: 't', state: 'review' } }),
+  const nodes = { 'pdf-job': el({ dataset: { id: 'a'.repeat(32), csrf: 't', state: 'review', titleSource } }),
     'status-box': el(), progress: el(), 'result-box': el(), 'make-pdf': el(), 'delete-job': el(), 'doc-save': el(), 'doc-title': el({ value: title }) };
   global.document = { getElementById: id => nodes[id], createElement: () => el({ innerHTML: '' }),
     querySelectorAll: sel => sel === '.image-card' ? [card] : [] };
@@ -50,6 +50,8 @@ async function scenario(name, { saveFails = false, networkErrors = 0, click = tr
   console.log((statuses >= 2 ? 'PASS' : 'FAIL') + ' poll retries after network error:', statuses, 'status calls');
   r = await scenario('notitle', { title: '', confirmAnswer: false });
   console.log((!r.calls.includes('start_phase2') && r.asked.length === 1 ? 'PASS' : 'FAIL') + ' empty title asks and can cancel:', r.calls.join(','));
+  r = await scenario('suggested', { title: 'Contents', titleSource: 'title_page', confirmAnswer: false });
+  console.log((!r.calls.includes('start_phase2') && r.asked.length === 1 && r.asked[0].includes('Contents') ? 'PASS' : 'FAIL') + ' suggested title must be confirmed:', r.calls.join(','));
   r = await scenario('title', { title: 'Ritual in the Roman World' });
   console.log((r.calls.includes('start_phase2') && r.asked.length === 0 ? 'PASS' : 'FAIL') + ' title present builds without asking:', r.calls.join(','));
 })();

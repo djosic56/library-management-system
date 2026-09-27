@@ -46,7 +46,8 @@ $langs = ['' => '—', 'en' => 'en', 'hr' => 'hr', 'de' => 'de', 'fr' => 'fr', '
 	<div class="container mt-4" id="pdf-job"
 		data-id="<?php echo htmlspecialchars($id); ?>"
 		data-csrf="<?php echo htmlspecialchars(generate_csrf_token()); ?>"
-		data-state="<?php echo htmlspecialchars($status['state'] ?? ''); ?>">
+		data-state="<?php echo htmlspecialchars($status['state'] ?? ''); ?>"
+		data-title-source="<?php echo htmlspecialchars($job['title_source'] ?? ''); ?>">
 
 		<a href="pdf.php" class="btn btn-link px-0"><i class="bi bi-arrow-left"></i> All jobs</a>
 		<h1 class="h4"><?php echo htmlspecialchars($job['name'] ?? ''); ?></h1>

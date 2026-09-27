@@ -3,6 +3,8 @@
 	const root = document.getElementById('pdf-job');
 	const id = root.dataset.id;
 	const csrf = root.dataset.csrf;
+	// naslov iz prijedloga (naslovna stranica / metapodaci) još nije potvrđen dok ga korisnik ne spremi
+	let titleSource = root.dataset.titleSource || '';
 	const RUNNING = ['queued', 'phase1', 'phase2'];
 	const LABELS = { queued: 'Waiting in queue…', phase1: 'AI is describing the images…', review: 'Review the descriptions, then click “Build PDF”.',
 		phase2: 'Building and checking the PDF…', done: 'Processing finished.', failed: 'Processing error.' };
@@ -66,8 +68,11 @@
 
 	const docMarker = document.getElementById('doc-save');
 	document.querySelectorAll('.doc-field').forEach(el => el.addEventListener('input', () =>
-		schedule('doc', docMarker, () => api({ action: 'save_document',
-			title: document.getElementById('doc-title').value, lang: document.getElementById('doc-lang').value }))));
+		schedule('doc', docMarker, async () => {
+			await api({ action: 'save_document',
+				title: document.getElementById('doc-title').value, lang: document.getElementById('doc-lang').value });
+			titleSource = 'user';
+		})));
 
 	// --- filteri (zadano: Treba pažnju) ---
 	function applyFilter(filter) {
@@ -140,6 +145,12 @@
 		const title = document.getElementById('doc-title');
 		if (title && !title.value.trim()
 			&& !confirm('The document has no title — PDF/UA validation will fail without one. Build the PDF anyway?')) {
+			return;
+		}
+		if (title && title.value.trim() && (titleSource === 'title_page' || titleSource === 'pdf')
+			&& !confirm('Is this the correct document title?\n\n' + title.value.trim()
+				+ '\n\n(It was ' + (titleSource === 'pdf' ? 'taken from the PDF metadata' : 'suggested from the title page')
+				+ ' and is often wrong.)')) {
 			return;
 		}
 		makePdf.disabled = true;
