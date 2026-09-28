@@ -1,5 +1,6 @@
 <?php
 // pdf_config.php - putanje za PDF obradu (bez tajni; OpenAI ključ je u .env alata)
+use App\Services\CheckJobStore;
 use App\Services\PdfJobStore;
 
 if (PHP_OS_FAMILY === 'Windows') {
@@ -23,4 +24,12 @@ function pdf_job_store(): PdfJobStore
         mkdir(PDF_JOBS_ROOT, 0700, true);
     }
     return new PdfJobStore(PDF_JOBS_ROOT, PDF_USE_WORKER ? PdfJobStore::requestLauncher(PDF_JOBS_ROOT) : null);
+}
+
+function check_job_store(): CheckJobStore
+{
+    if (!is_dir(PDF_JOBS_ROOT)) {
+        mkdir(PDF_JOBS_ROOT, 0700, true);
+    }
+    return new CheckJobStore(PDF_JOBS_ROOT, PDF_USE_WORKER ? CheckJobStore::requestLauncher(PDF_JOBS_ROOT) : null);
 }

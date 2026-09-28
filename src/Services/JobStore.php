@@ -139,14 +139,23 @@ abstract class JobStore
             if (in_array($state, array_diff(static::RUNNING, ['queued']), true)) {
                 throw self::invalid('phase', 'Processing is already running');
             }
+            $path = $this->dir($id) . '/status.json';
+            $previous = is_file($path) ? (string) file_get_contents($path) : null;
             // Očisti tragove prethodne faze: stari heartbeat bi izgledao kao mrtav proces, a stari
             // PDF/UA rezultat kao rezultat nove obrade
-            $this->mergeJson($this->dir($id) . '/status.json', [
+            $this->mergeJson($path, [
                 'state' => 'queued', 'queued_at' => self::now(), 'message' => null,
                 'heartbeat' => null, 'pid' => null, 'finished' => null, 'progress' => null,
                 'pdfua_ok' => null, 'pdfua_failed' => null,
             ]);
-            ($this->launcher)($id, $phase);
+            try {
+                ($this->launcher)($id, $phase);
+            } catch (\Throwable $e) {
+                // Oba launchera bacaju samo kad ništa nije pokrenuto (proc_open nije uspio / request.json
+                // nije upisan) — rezervacija se poništi, pa posao ostaje u stanju prije pokretanja.
+                $this->restoreFile($path, $previous);
+                throw $e;
+            }
         });
     }
 
@@ -291,6 +300,20 @@ abstract class JobStore
             flock($lock, LOCK_UN);
             fclose($lock);
         }
+    }
+
+    /** Vrati datoteku na zapamćeni sadržaj (null = nije postojala) — atomski, kao writeJson. */
+    protected function restoreFile(string $path, ?string $content): void
+    {
+        if ($content === null) {
+            if (is_file($path)) {
+                unlink($path);
+            }
+            return;
+        }
+        $tmp = $path . '.' . bin2hex(random_bytes(4)) . '.tmp';
+        file_put_contents($tmp, $content);
+        rename($tmp, $path);
     }
 
     /** .deleted (ako postoji) ide zadnji, tik prije rmdir — prekinuto brisanje ostaje NotFound. */

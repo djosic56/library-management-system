@@ -123,6 +123,29 @@ class PdfJobStoreTest extends TestCase
         $this->store()->start($id, 'phase2');
     }
 
+    public function testLauncherFailureRestoresPreviousStatus(): void
+    {
+        // oba launchera bacaju samo kad ništa nije pokrenuto — rezervacija se poništi, posao ostaje editabilan
+        $id = $this->job();
+        $this->setState($id, 'review', gmdate('Y-m-d\TH:i:s.000000\Z', time() - 3600));
+        $before = file_get_contents("{$this->root}/$id/status.json");
+        $failing = new PdfJobStore($this->root, function (string $id, string $phase) {
+            throw new \RuntimeException('Ne mogu pokrenuti obradu');
+        });
+
+        try {
+            $failing->start($id, 'phase2');
+            $this->fail('expected RuntimeException');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('Ne mogu pokrenuti obradu', $e->getMessage());
+        }
+
+        $this->assertSame($before, file_get_contents("{$this->root}/$id/status.json"));
+        $this->store()->updateImage($id, 7, ['description' => 'Still editable']);
+        $this->store()->start($id, 'phase2');
+        $this->assertSame([[$id, 'phase2']], $this->launched);
+    }
+
     public function testWorkerModeWritesRequestInsteadOfStartingProcess(): void
     {
         // server: PHP ne smije pokretati procese — zahtjev preuzima job_worker.py (cron)
