@@ -168,12 +168,24 @@ abstract class JobStore
         return $this->readJson($this->dir($id) . '/job.json', []);
     }
 
+    /**
+     * Isti protokol kao start(): odluka (rezervirano/radi -> odbij) provjerava se unutar istog
+     * upravljačkog locka kao start(), pa se brisanje i pokretanje ne mogu preklopiti. Sámo brisanje
+     * s diska ide tek nakon otključavanja — .control.lock je unutar direktorija posla, a Windows ne
+     * dopušta brisanje otvorenog fajla, pa se direktorij ne može ukloniti dok ga ovaj proces drži.
+     */
     public function delete(string $id): void
     {
         $dir = $this->dir($id);
-        if (in_array($this->status($id)['state'] ?? '', static::RUNNING, true)) {
-            throw self::invalid('state', 'A job cannot be deleted while it is processing');
-        }
+        $this->withJobLock($id, function () use ($id) {
+            $status = $this->status($id);
+            $state = $status['state'] ?? '';
+            $reserved = in_array($state, static::RUNNING, true) && isset($status['queued_at']);
+            $running = in_array($state, array_diff(static::RUNNING, ['queued']), true);
+            if ($reserved || $running) {
+                throw self::invalid('state', 'A job cannot be deleted while it is processing');
+            }
+        });
         $this->removeTree($dir);
     }
 

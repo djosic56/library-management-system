@@ -281,4 +281,55 @@ class PdfJobStoreTest extends TestCase
         $this->store()->status($id);
     }
 
+    public function testDeleteRefusedWhileReservedButAllowedForFreshQueuedJob(): void
+    {
+        // create() upload nije rezerviran (nema queued_at) — brisanje mora proći
+        $id = $this->store()->create($this->upload("%PDF-1.7\nabc"), 'Knjiga', null, null, null);
+        $this->assertSame('queued', $this->store()->status($id)['state']);
+        $this->store()->delete($id);
+        $this->assertDirectoryDoesNotExist("{$this->root}/$id");
+    }
+
+    public function testDeleteRefusedWhileReservationPending(): void
+    {
+        // start() je upravo rezervirao posao (queued_at postavljen) — istrčao je prije runnera
+        $id = $this->job();
+        $this->store()->start($id, 'phase2');
+        $this->expectException(ValidationException::class);
+        $this->store()->delete($id);
+    }
+
+    public function testTwoConcurrentProcessesOnlyOneLaunches(): void
+    {
+        $id = $this->job();
+        $script = __DIR__ . '/../fixtures/start_job.php';
+        $recordFile = $this->root . '/launch_record.txt';
+        $cmd1 = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($script) . ' '
+            . escapeshellarg($this->root) . ' ' . escapeshellarg($id) . ' ' . escapeshellarg($recordFile);
+        $cmd2 = $cmd1;
+
+        $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $p1 = proc_open($cmd1, $descriptors, $pipes1);
+        $p2 = proc_open($cmd2, $descriptors, $pipes2);
+        $this->assertIsResource($p1);
+        $this->assertIsResource($p2);
+        $out1 = stream_get_contents($pipes1[1]);
+        $err1 = stream_get_contents($pipes1[2]);
+        $out2 = stream_get_contents($pipes2[1]);
+        $err2 = stream_get_contents($pipes2[2]);
+        foreach ([$pipes1, $pipes2] as $pipes) {
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+        }
+        $rc1 = proc_close($p1);
+        $rc2 = proc_close($p2);
+
+        $results = [trim($out1), trim($out2)];
+        sort($results);
+        $this->assertSame(['already_running', 'launched'], $results,
+            "rc1=$rc1 err1=$err1 rc2=$rc2 err2=$err2");
+        $this->assertTrue(is_file($recordFile), 'launcher must have run exactly once');
+        $records = array_filter(explode("\n", trim((string) file_get_contents($recordFile))));
+        $this->assertCount(1, $records, 'exactly one process must have launched the runner');
+    }
 }
