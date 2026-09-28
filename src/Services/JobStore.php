@@ -170,7 +170,7 @@ abstract class JobStore
 
     /**
      * Isti protokol kao start(): odluka (rezervirano/radi -> odbij) provjerava se unutar istog
-     * upravljačkog locka kao start(), pa se brisanje i pokretanje ne mogu preklopiti. Sámo brisanje
+     * upravljačkog locka kao start(), pa se brisanje i pokretanje ne mogu preklopiti. Samo brisanje
      * s diska ide tek nakon otključavanja — .control.lock je unutar direktorija posla, a Windows ne
      * dopušta brisanje otvorenog fajla, pa se direktorij ne može ukloniti dok ga ovaj proces drži.
      */
