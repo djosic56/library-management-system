@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS `check_job` (
+  `id` CHAR(32) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  `book_id` INT NULL,
+  `state` VARCHAR(20) NOT NULL DEFAULT 'queued',
+  `findings` INT NULL,
+  `reviewed` INT NULL,
+  `accepted` INT NULL,
+  `rejected` INT NULL,
+  `edited` INT NULL,
+  `not_placed` INT NULL,
+  `failed_units` INT NULL,
+  `cost_usd` DECIMAL(8,4) NULL,
+  `created_by` INT NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_check_job_book` (`book_id`),
+  CONSTRAINT `fk_check_job_book` FOREIGN KEY (`book_id`) REFERENCES `book` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
