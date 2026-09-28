@@ -281,7 +281,7 @@ class PdfJobStoreTest extends TestCase
         $this->store()->status($id);
     }
 
-    public function testDeleteRefusedWhileReservedButAllowedForFreshQueuedJob(): void
+    public function testDeleteAllowedForUnreservedQueuedJob(): void
     {
         // create() upload nije rezerviran (nema queued_at) — brisanje mora proći
         $id = $this->store()->create($this->upload("%PDF-1.7\nabc"), 'Knjiga', null, null, null);
@@ -299,20 +299,91 @@ class PdfJobStoreTest extends TestCase
         $this->store()->delete($id);
     }
 
+    public function testDeletedTombstoneMakesJobNotFoundUntilRemoved(): void
+    {
+        // simulira prozor između withJobLock-a u delete() (upisan .deleted) i removeTree() s diska
+        $id = $this->job();
+        $statusBefore = file_get_contents("{$this->root}/$id/status.json");
+        file_put_contents("{$this->root}/$id/.deleted", '1');
+
+        try {
+            $this->store()->start($id, 'phase2');
+            $this->fail('start(): expected NotFoundException');
+        } catch (NotFoundException $e) {
+        }
+        $this->assertSame([], $this->launched, 'start() must not launch a tombstoned job');
+        $this->assertSame($statusBefore, file_get_contents("{$this->root}/$id/status.json"),
+            'status.json must be untouched');
+
+        try {
+            $this->store()->status($id);
+            $this->fail('status(): expected NotFoundException');
+        } catch (NotFoundException $e) {
+        }
+
+        try {
+            $this->store()->updateImage($id, 7, ['description' => 'x']);
+            $this->fail('updateImage(): expected NotFoundException');
+        } catch (NotFoundException $e) {
+        }
+    }
+
+    public function testControlLockDirectoryMakesFopenFailCleanly(): void
+    {
+        // fopen('c') na direktoriju vraća false — withJobLock mora prekinuti prije zapisa/pokretanja
+        $id = $this->job();
+        $statusBefore = file_get_contents("{$this->root}/$id/status.json");
+        mkdir("{$this->root}/$id/.control.lock");
+
+        try {
+            $this->store()->start($id, 'phase2');
+            $this->fail('start(): expected RuntimeException');
+        } catch (\RuntimeException $e) {
+        }
+        $this->assertSame([], $this->launched, 'start() must not launch when the lock cannot be taken');
+        $this->assertSame($statusBefore, file_get_contents("{$this->root}/$id/status.json"),
+            'status.json must be untouched');
+
+        try {
+            $this->store()->delete($id);
+            $this->fail('delete(): expected RuntimeException');
+        } catch (\RuntimeException $e) {
+        }
+        $this->assertDirectoryExists("{$this->root}/$id", 'a failed lock must leave the job directory alone');
+    }
+
+    /**
+     * Ne dokazuje samo da se dogodi točno jedno pokretanje (to bi mogla proći i bez locka, ovisno
+     * o redoslijedu OS schedulera) — test sam prvo uzme upravljački lock i drži ga dok oba djeteta
+     * ne pokušaju startati, pa dokaže da oba čekaju (record fajl još ne postoji) prije nego ga pusti.
+     */
     public function testTwoConcurrentProcessesOnlyOneLaunches(): void
     {
         $id = $this->job();
         $script = __DIR__ . '/../fixtures/start_job.php';
         $recordFile = $this->root . '/launch_record.txt';
-        $cmd1 = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($script) . ' '
+        $lockPath = "{$this->root}/$id/.control.lock";
+
+        $testLock = fopen($lockPath, 'c');
+        $this->assertNotFalse($testLock, 'test must be able to open the control lock file');
+        $this->assertTrue(flock($testLock, LOCK_EX), 'test must be able to take the control lock first');
+
+        $cmd = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($script) . ' '
             . escapeshellarg($this->root) . ' ' . escapeshellarg($id) . ' ' . escapeshellarg($recordFile);
-        $cmd2 = $cmd1;
 
         $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-        $p1 = proc_open($cmd1, $descriptors, $pipes1);
-        $p2 = proc_open($cmd2, $descriptors, $pipes2);
+        $p1 = proc_open($cmd, $descriptors, $pipes1);
+        $p2 = proc_open($cmd, $descriptors, $pipes2);
         $this->assertIsResource($p1);
         $this->assertIsResource($p2);
+
+        usleep(500_000);   // dovoljno vremena da oba djeteta stignu do flock() i zablokiraju se
+        $this->assertFileDoesNotExist($recordFile,
+            'both children must still be blocked on the control lock while the test holds it');
+
+        flock($testLock, LOCK_UN);
+        fclose($testLock);
+
         $out1 = stream_get_contents($pipes1[1]);
         $err1 = stream_get_contents($pipes1[2]);
         $out2 = stream_get_contents($pipes2[1]);

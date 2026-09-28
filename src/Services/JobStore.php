@@ -46,6 +46,11 @@ abstract class JobStore
         if (!self::isValidId($id) || !is_dir($dir)) {
             throw new NotFoundException('job', 0);
         }
+        // Nadgrobni marker: delete() ga upiše prije brisanja s diska (vidi delete()) — posao se
+        // ponaša kao obrisan i prije nego stigne removeTree(), pa se ne može ponovno pokrenuti.
+        if (is_file($dir . '/.deleted')) {
+            throw new NotFoundException('job', 0);
+        }
         // PDF i Check poslovi dijele korijen — posao druge vrste se ne otvara (stari PDF poslovi nemaju kind)
         if (($this->readJson($dir . '/job.json', [])['kind'] ?? 'pdf') !== static::KIND) {
             throw new NotFoundException('job', 0);
@@ -65,7 +70,7 @@ abstract class JobStore
         if (isset($this->heldLocks[$id])) {
             return $fn();
         }
-        $lock = fopen($this->dir($id) . '/.control.lock', 'c');
+        $lock = @fopen($this->dir($id) . '/.control.lock', 'c');
         if ($lock === false) {
             throw new \RuntimeException('Ne mogu zaključati posao');
         }
@@ -170,20 +175,26 @@ abstract class JobStore
 
     /**
      * Isti protokol kao start(): odluka (rezervirano/radi -> odbij) provjerava se unutar istog
-     * upravljačkog locka kao start(), pa se brisanje i pokretanje ne mogu preklopiti. Samo brisanje
-     * s diska ide tek nakon otključavanja — .control.lock je unutar direktorija posla, a Windows ne
-     * dopušta brisanje otvorenog fajla, pa se direktorij ne može ukloniti dok ga ovaj proces drži.
+     * upravljačkog locka kao start(), pa se brisanje i pokretanje ne mogu preklopiti. Nakon odluke,
+     * dok se još drži lock, upiše se nadgrobni marker .deleted — dir() (pa time i start/status/job/
+     * updateImage/…) od tog trenutka posao tretira kao nepostojeći, pa se ne može pokrenuti ni u
+     * prozoru između otključavanja i stvarnog brisanja s diska. Samo brisanje s diska ide tek nakon
+     * otključavanja — .control.lock je unutar direktorija posla, a Windows ne dopušta brisanje
+     * otvorenog fajla, pa se direktorij ne može ukloniti dok ga ovaj proces drži.
      */
     public function delete(string $id): void
     {
         $dir = $this->dir($id);
-        $this->withJobLock($id, function () use ($id) {
+        $this->withJobLock($id, function () use ($id, $dir) {
             $status = $this->status($id);
             $state = $status['state'] ?? '';
             $reserved = in_array($state, static::RUNNING, true) && isset($status['queued_at']);
             $running = in_array($state, array_diff(static::RUNNING, ['queued']), true);
             if ($reserved || $running) {
                 throw self::invalid('state', 'A job cannot be deleted while it is processing');
+            }
+            if (file_put_contents($dir . '/.deleted', '1') === false) {
+                throw new \RuntimeException('Ne mogu obrisati posao');
             }
         });
         $this->removeTree($dir);
@@ -282,12 +293,17 @@ abstract class JobStore
         }
     }
 
+    /** .deleted (ako postoji) ide zadnji, tik prije rmdir — prekinuto brisanje ostaje NotFound. */
     protected function removeTree(string $dir): void
     {
         foreach (scandir($dir) as $f) {
-            if ($f === '.' || $f === '..') continue;
+            if ($f === '.' || $f === '..' || $f === '.deleted') continue;
             $p = $dir . '/' . $f;
             is_dir($p) && !is_link($p) ? $this->removeTree($p) : unlink($p);
+        }
+        $marker = $dir . '/.deleted';
+        if (is_file($marker)) {
+            unlink($marker);
         }
         rmdir($dir);
     }
