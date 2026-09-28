@@ -80,7 +80,10 @@ class PdfJobStoreTest extends TestCase
         $this->assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $id);
         $this->assertFileExists("{$this->root}/$id/source.pdf");
         $job = json_decode(file_get_contents("{$this->root}/$id/job.json"), true);
-        $this->assertSame(['name' => 'Knjiga', 'title' => 'Naslov', 'lang' => 'hr', 'book_id' => 5], $job);
+        $this->assertSame([
+            'name' => 'Knjiga', 'title' => 'Naslov', 'lang' => 'hr', 'book_id' => 5,
+            'kind' => 'pdf', 'source_sha256' => hash('sha256', "%PDF-1.7\nbody"), 'source_size' => 13,
+        ], $job);
         $this->assertSame('queued', $this->store()->status($id)['state']);
         $this->assertSame([], $this->launched, 'create() must not start processing');
     }
@@ -245,4 +248,37 @@ class PdfJobStoreTest extends TestCase
         $this->store()->delete($id);
         $this->assertDirectoryDoesNotExist("{$this->root}/$id");
     }
+
+    public function testUploadStoresKindAndFingerprint(): void
+    {
+        $id = $this->store()->create($this->upload("%PDF-1.7\nabc"), 'Knjiga', null, null, null);
+        $job = $this->store()->job($id);
+        $this->assertSame('pdf', $job['kind']);
+        $this->assertSame(hash('sha256', "%PDF-1.7\nabc"), $job['source_sha256']);
+        $this->assertSame(12, $job['source_size']);
+    }
+
+    public function testOldJobWithoutKindStillOpensAndStarts(): void
+    {
+        $id = $this->job();
+        $job = json_decode(file_get_contents("{$this->root}/$id/job.json"), true);
+        unset($job['kind'], $job['source_sha256'], $job['source_size']);        // posao iz vremena prije Checka
+        file_put_contents("{$this->root}/$id/job.json", json_encode($job));
+        $this->assertSame('review', $this->store()->status($id)['state']);
+        $this->store()->start($id, 'phase2');
+        $this->assertSame([[$id, 'phase2']], $this->launched);
+        $this->expectException(ValidationException::class);                    // posao je sada u redu (queued)
+        $this->store()->updateImage($id, 7, ['description' => 'x']);
+    }
+
+    public function testJobOfAnotherKindIsNotFound(): void
+    {
+        $id = $this->job();
+        $job = json_decode(file_get_contents("{$this->root}/$id/job.json"), true);
+        $job['kind'] = 'check';
+        file_put_contents("{$this->root}/$id/job.json", json_encode($job));
+        $this->expectException(NotFoundException::class);
+        $this->store()->status($id);
+    }
+
 }

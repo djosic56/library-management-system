@@ -3,130 +3,26 @@
 namespace App\Services;
 
 use App\Exceptions\NotFoundException;
-use App\Exceptions\ValidationException;
 
 /**
  * PDF poslovi na disku (~/pdf_jobs/<id>/). Ne radi PDF obradu — samo JSON i pokretanje
  * Python runnera. Stanje obrade piše runner u status.json.
  */
-class PdfJobStore
+class PdfJobStore extends JobStore
 {
-    public const MAX_BYTES = 200 * 1024 * 1024;
-    public const STALE_SECONDS = 300;
-    private const RUNNING = ['queued', 'phase1', 'phase2'];
-
-    /** @var callable */
-    private $launcher;
-
-    public function __construct(private string $jobsRoot, ?callable $launcher = null)
-    {
-        $this->launcher = $launcher ?? [self::class, 'launchRunner'];
-    }
-
-    public static function isValidId(string $id): bool
-    {
-        return (bool) preg_match('/^[0-9a-f]{32}$/', $id);
-    }
-
-    /**
-     * POST veći od post_max_size: PHP odbaci i $_POST i $_FILES (pa i csrf_token) — prepoznaj
-     * to prije CSRF provjere, da korisnik dobije „prevelik“ umjesto „CSRF 403“.
-     */
-    public static function isOversizedPost(array $server, array $post, array $files): bool
-    {
-        return empty($post) && empty($files) && (int) ($server['CONTENT_LENGTH'] ?? 0) > 0;
-    }
-
-    public function dir(string $id): string
-    {
-        $dir = $this->jobsRoot . '/' . $id;
-        if (!self::isValidId($id) || !is_dir($dir)) {
-            throw new NotFoundException('pdf_job', 0);
-        }
-        return $dir;
-    }
+    protected const KIND = 'pdf';
+    protected const PHASES = ['phase1', 'phase2'];
+    protected const RUNNING = ['queued', 'phase1', 'phase2'];
+    protected const EDIT_LOCKED = ['queued', 'phase2'];
 
     public function create(array $upload, string $name, ?string $title, ?string $lang, ?int $bookId): string
     {
-        $error = $upload['error'] ?? UPLOAD_ERR_NO_FILE;
-        if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
-            throw self::invalid('pdf', 'The PDF is too large — maximum 200 MB');
-        }
-        if ($error !== UPLOAD_ERR_OK || empty($upload['tmp_name']) || !is_file($upload['tmp_name'])) {
-            throw self::invalid('pdf', 'Upload failed — please try again');
-        }
-        if (filesize($upload['tmp_name']) > self::MAX_BYTES) {
-            throw self::invalid('pdf', 'The PDF is too large — maximum 200 MB');
-        }
-        if (file_get_contents($upload['tmp_name'], false, null, 0, 5) !== '%PDF-') {
-            throw self::invalid('pdf', 'The file is not a PDF');
-        }
         if ($lang !== null && $lang !== '' && !preg_match('/^[a-z]{2}(-[A-Z]{2})?$/', $lang)) {
             throw self::invalid('lang', 'Invalid language code');
         }
-
-        $id = bin2hex(random_bytes(16));
-        $dir = $this->jobsRoot . '/' . $id;
-        if (!mkdir($dir, 0700, true)) {
-            throw new \RuntimeException('Ne mogu napraviti direktorij posla');
-        }
-        $target = $dir . '/source.pdf';
-        $moved = is_uploaded_file($upload['tmp_name'])
-            ? move_uploaded_file($upload['tmp_name'], $target)
-            : rename($upload['tmp_name'], $target);
-        if (!$moved) {
-            throw new \RuntimeException('Ne mogu spremiti PDF');
-        }
-        $this->writeJson($dir . '/job.json', [
+        return $this->createJob($upload, [
             'name' => $name, 'title' => $title ?: null, 'lang' => $lang ?: null, 'book_id' => $bookId,
         ]);
-        $this->writeJson($dir . '/status.json', ['state' => 'queued', 'created' => self::now()]);
-        return $id;
-    }
-
-    public function start(string $id, string $phase): void
-    {
-        if (!in_array($phase, ['phase1', 'phase2'], true)) {
-            throw self::invalid('phase', 'Unknown phase');
-        }
-        $state = $this->status($id)['state'] ?? '';
-        if (in_array($state, self::RUNNING, true) && isset($this->status($id)['queued_at'])) {
-            throw self::invalid('phase', 'Processing is already running');
-        }
-        if (in_array($state, ['phase1', 'phase2'], true)) {
-            throw self::invalid('phase', 'Processing is already running');
-        }
-        // Očisti tragove prethodne faze: stari heartbeat bi izgledao kao mrtav proces, a stari
-        // PDF/UA rezultat kao rezultat nove obrade
-        $this->mergeJson($this->dir($id) . '/status.json', [
-            'state' => 'queued', 'queued_at' => self::now(), 'message' => null,
-            'heartbeat' => null, 'pid' => null, 'finished' => null, 'progress' => null,
-            'pdfua_ok' => null, 'pdfua_failed' => null,
-        ]);
-        ($this->launcher)($id, $phase);
-    }
-
-    public function status(string $id): array
-    {
-        $path = $this->dir($id) . '/status.json';
-        $status = $this->readJson($path, ['state' => 'queued']);
-        if (in_array($status['state'] ?? '', self::RUNNING, true)) {
-            $times = array_filter(array_map(fn ($k) => isset($status[$k]) ? strtotime($status[$k]) : null,
-                ['heartbeat', 'queued_at', 'created']));
-            $last = $times ? max($times) : null;
-            if ($last === null || time() - $last > self::STALE_SECONDS) {
-                $status = $this->mergeJson($path, [
-                    'state' => 'failed',
-                    'message' => 'Processing was interrupted (the process is not running). Please start it again.',
-                ]);
-            }
-        }
-        return $status;
-    }
-
-    public function job(string $id): array
-    {
-        return $this->readJson($this->dir($id) . '/job.json', []);
     }
 
     public function descriptions(string $id): array
@@ -200,115 +96,10 @@ class PdfJobStore
         return $path;
     }
 
-    public function delete(string $id): void
+    protected function assertEditable(string $id): void
     {
-        $dir = $this->dir($id);
-        if (in_array($this->status($id)['state'] ?? '', self::RUNNING, true)) {
-            throw self::invalid('state', 'A job cannot be deleted while it is processing');
-        }
-        $this->removeTree($dir);
-    }
-
-    /**
-     * Launcher za server na kojem PHP ne smije pokretati procese (disable_functions):
-     * zapiše request.json, a job_worker.py (korisnički cron) pokrene runner.
-     */
-    public static function requestLauncher(string $jobsRoot): callable
-    {
-        return function (string $id, string $phase) use ($jobsRoot): void {
-            $path = $jobsRoot . '/' . $id . '/request.json';
-            $tmp = $path . '.' . bin2hex(random_bytes(4)) . '.tmp';
-            file_put_contents($tmp, json_encode(['phase' => $phase, 'requested' => self::now()]));
-            if (!rename($tmp, $path)) {
-                throw new \RuntimeException('Ne mogu zatražiti obradu');
-            }
-        };
-    }
-
-    /** Default launcher (lokalno): runner u pozadini, odvojen od web zahtjeva. */
-    public static function launchRunner(string $id, string $phase): void
-    {
-        $jobDir = PDF_JOBS_ROOT . '/' . $id;
-        // izlaz procesa zasebno: log.txt piše Python (na Windowsu dva pisača istog fajla = PermissionError)
-        $log = $jobDir . '/runner_output.txt';
-        if (PHP_OS_FAMILY === 'Windows') {
-            $cmd = sprintf('start "" /B %s %s %s %s >> %s 2>&1',
-                escapeshellarg(PDF_PYTHON), escapeshellarg(PDF_TOOL_DIR . '/job_runner.py'),
-                $phase, escapeshellarg($jobDir), escapeshellarg($log));
-        } else {
-            $cmd = sprintf('cd %s && setsid nohup %s job_runner.py %s %s >> %s 2>&1 < /dev/null &',
-                escapeshellarg(PDF_TOOL_DIR), escapeshellarg(PDF_PYTHON), $phase,
-                escapeshellarg($jobDir), escapeshellarg($log));
-        }
-        $proc = proc_open($cmd, [], $pipes, PDF_TOOL_DIR);
-        if (!is_resource($proc)) {
-            throw new \RuntimeException('Ne mogu pokrenuti obradu');
-        }
-        proc_close($proc);
-    }
-
-    private static function invalid(string $field, string $message): ValidationException
-    {
-        return new ValidationException($field, $message, 422);
-    }
-
-    private function assertEditable(string $id): void
-    {
-        if (in_array($this->status($id)['state'] ?? '', ['queued', 'phase2'], true)) {
+        if (in_array($this->status($id)['state'] ?? '', static::EDIT_LOCKED, true)) {
             throw self::invalid('state', 'The PDF is being built — edits are not possible until it finishes');
         }
-    }
-
-    private static function now(): string
-    {
-        return gmdate('Y-m-d\TH:i:s.000000\Z');
-    }
-
-    private function readJson(string $path, array $default): array
-    {
-        if (!is_file($path)) {
-            return $default;
-        }
-        $data = json_decode((string) file_get_contents($path), true);
-        return is_array($data) ? $data : $default;
-    }
-
-    private function writeJson(string $path, array $data): void
-    {
-        $tmp = $path . '.' . bin2hex(random_bytes(4)) . '.tmp';
-        file_put_contents($tmp, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-        rename($tmp, $path);
-    }
-
-    private function mergeJson(string $path, array $fields): array
-    {
-        $result = [];
-        $this->withLockedJson($path, function (array $data) use ($fields, &$result) {
-            return $result = array_merge($data, $fields);
-        });
-        return $result;
-    }
-
-    /** flock na .lock uz fajl, pa tmp + rename — spremanje s dva uređaja ne kvari JSON. */
-    private function withLockedJson(string $path, callable $change): void
-    {
-        $lock = fopen($path . '.lock', 'c');
-        flock($lock, LOCK_EX);
-        try {
-            $this->writeJson($path, $change($this->readJson($path, [])));
-        } finally {
-            flock($lock, LOCK_UN);
-            fclose($lock);
-        }
-    }
-
-    private function removeTree(string $dir): void
-    {
-        foreach (scandir($dir) as $f) {
-            if ($f === '.' || $f === '..') continue;
-            $p = $dir . '/' . $f;
-            is_dir($p) && !is_link($p) ? $this->removeTree($p) : unlink($p);
-        }
-        rmdir($dir);
     }
 }
