@@ -34,22 +34,47 @@
 		return data;
 	}
 
-	// --- spremanje (debounce 800 ms, indikator po kartici) ---
-	const pending = {};   // key → {timer, run}; flushSaves() ih šalje odmah (prije „Napravi PDF“)
-	function schedule(key, marker, fn) {
+	// --- spremanje: debounce po polju, red po grupi (slika / dokument), zapamćene greške ---
+	// flushSaves() prije „Build PDF“ čeka i spremanja koja su već u tijeku; neuspjelo spremanje blokira izradu.
+	const pending = {};   // key → {timer, run} — zakazano, još nije poslano
+	const queues = {};    // group → zadnji promise u redu grupe (zahtjevi iste grupe idu jedan za drugim)
+	const failed = {};    // key → poruka; briše se tek kad to isto polje uspješno spremi
+	let started = 0;      // broj pokrenutih spremanja (flushSaves zna je li se u međuvremenu pojavilo novo)
+	function schedule(key, group, marker, fn) {
 		marker.textContent = '…';
 		marker.className = 'save-state text-muted ms-auto';
 		if (pending[key]) clearTimeout(pending[key].timer);
-		const run = async () => {
+		const run = () => {
 			delete pending[key];
-			try { await fn(); marker.textContent = 'saved'; marker.className = 'save-state text-success ms-auto'; }
-			catch (e) { marker.textContent = e.message; marker.className = 'save-state text-danger ms-auto'; throw e; }
+			started++;
+			const job = (queues[group] || Promise.resolve()).catch(() => {}).then(fn).then(() => {
+				delete failed[key];
+				marker.textContent = 'saved'; marker.className = 'save-state text-success ms-auto';
+			}, e => {
+				failed[key] = e.message;
+				marker.textContent = e.message; marker.className = 'save-state text-danger ms-auto';
+				throw e;
+			});
+			queues[group] = job;
+			return job;
 		};
 		pending[key] = { timer: setTimeout(() => run().catch(() => {}), 800), run };
 	}
 	async function flushSaves() {
-		const runs = Object.values(pending).map(p => { clearTimeout(p.timer); return p.run(); });
-		await Promise.all(runs);   // baci grešku ako ijedno spremanje ne uspije
+		for (;;) {   // čekaj dok ništa nije ni zakazano ni u tijeku
+			Object.values(pending).forEach(p => { clearTimeout(p.timer); p.run().catch(() => {}); });
+			const before = started;
+			await Promise.allSettled(Object.values(queues));
+			if (!Object.keys(pending).length && started === before) break;
+		}
+		const errors = Object.values(failed);
+		if (errors.length) throw new Error('Some changes were NOT saved (' + errors[0] + ') — fix them before building');
+	}
+	// dok se čeka na spremanja i pokretanje izrade, polja se ne mogu mijenjati
+	function setLocked(locked) {
+		document.querySelectorAll('.image-card').forEach(card =>
+			card.querySelectorAll('.img-field').forEach(el => { el.disabled = locked; }));
+		document.querySelectorAll('.doc-field').forEach(el => { el.disabled = locked; });
 	}
 
 	document.querySelectorAll('.image-card').forEach(card => {
@@ -58,21 +83,22 @@
 		card.querySelectorAll('.img-field').forEach(el => {
 			const ev = el.tagName === 'TEXTAREA' ? 'input' : 'change';
 			el.addEventListener(ev, () => {
-				const value = el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value;
+				const value = el.type === 'checkbox' ? (el.checked ? '1' : '0') : el.value;   // vrijednost u trenutku izmjene
 				if (el.dataset.field === 'decorative') card.dataset.decorative = el.checked ? '1' : '0';
-				schedule('img' + xref + el.dataset.field, marker,
+				schedule('img' + xref + el.dataset.field, 'img' + xref, marker,
 					() => api({ action: 'save_image', xref, [el.dataset.field]: value }));
 			});
 		});
 	});
 
 	const docMarker = document.getElementById('doc-save');
-	document.querySelectorAll('.doc-field').forEach(el => el.addEventListener('input', () =>
-		schedule('doc', docMarker, async () => {
-			await api({ action: 'save_document',
-				title: document.getElementById('doc-title').value, lang: document.getElementById('doc-lang').value });
+	document.querySelectorAll('.doc-field').forEach(el => el.addEventListener('input', () => {
+		const title = document.getElementById('doc-title').value, lang = document.getElementById('doc-lang').value;
+		schedule('doc', 'doc', docMarker, async () => {
+			await api({ action: 'save_document', title, lang });
 			titleSource = 'user';
-		})));
+		});
+	}));
 
 	// --- filteri (zadano: Treba pažnju) ---
 	function applyFilter(filter) {
@@ -103,6 +129,7 @@
 		progress.classList.toggle('d-none', !(state === 'phase1' && p && p.total));
 		if (p && p.total) progress.firstElementChild.style.width = Math.round(100 * p.done / p.total) + '%';
 		makePdf.disabled = RUNNING.includes(state);
+		setLocked(RUNNING.includes(state));   // izmjene nisu moguće dok obrada traje
 		del.disabled = RUNNING.includes(state);
 
 		if (state === 'done') {
@@ -154,16 +181,25 @@
 			return;
 		}
 		makePdf.disabled = true;
+		setLocked(true);
 		try {
 			await flushSaves();   // zadnja izmjena mora ući u PDF
 			await api({ action: 'start_phase2' }); wasRunning = true; poll();
 		}
-		catch (e) { statusBox.textContent = e.message; statusBox.className = 'alert alert-danger'; makePdf.disabled = false; }
+		catch (e) {
+			statusBox.textContent = e.message; statusBox.className = 'alert alert-danger';
+			makePdf.disabled = false;
+			setLocked(false);
+		}
 	});
 
 	del.addEventListener('click', async () => {
 		if (!confirm('Delete job “' + del.dataset.name + '” and all its files? This cannot be undone.')) return;
-		try { await api({ action: 'delete' }); location.href = 'pdf.php'; }
-		catch (e) { alert(e.message); }
+		// zakazana spremanja se ne šalju prema poslu koji se briše
+		Object.values(pending).forEach(p => clearTimeout(p.timer));
+		Object.keys(pending).forEach(k => delete pending[k]);
+		setLocked(true);
+		try { await Promise.allSettled(Object.values(queues)); await api({ action: 'delete' }); location.href = 'pdf.php'; }
+		catch (e) { alert(e.message); setLocked(false); }
 	});
 })();
