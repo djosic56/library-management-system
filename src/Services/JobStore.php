@@ -168,10 +168,17 @@ abstract class JobStore
                 ['heartbeat', 'queued_at', 'created']));
             $last = $times ? max($times) : null;
             if ($last === null || time() - $last > self::STALE_SECONDS) {
-                $status = $this->mergeJson($path, [
-                    'state' => 'failed',
-                    'message' => 'Processing was interrupted (the process is not running). Please start it again.',
-                ]);
+                $dir = $this->dir($id);
+                $this->withLockedJson($path, function (array $data) use ($dir, &$status) {
+                    $status = array_merge($data, [
+                        'state' => 'failed',
+                        'message' => 'Processing was interrupted (the process is not running). Please start it again.',
+                    ]);
+                    // isti lock/merge: cron worker (requestLauncher/job_worker.py) koji dođe kasnije ne
+                    // smije pokrenuti već propali (i eventualno plaćeni) zahtjev (M5)
+                    @unlink($dir . '/request.json');
+                    return $status;
+                });
             }
         }
         return $status;
@@ -276,8 +283,14 @@ abstract class JobStore
     protected function writeJson(string $path, array $data): void
     {
         $tmp = $path . '.' . bin2hex(random_bytes(4)) . '.tmp';
-        file_put_contents($tmp, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-        rename($tmp, $path);
+        if (file_put_contents($tmp, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)) === false) {
+            @unlink($tmp);
+            throw new \RuntimeException('Ne mogu spremiti podatke');
+        }
+        if (!rename($tmp, $path)) {
+            @unlink($tmp);
+            throw new \RuntimeException('Ne mogu spremiti podatke');
+        }
     }
 
     protected function mergeJson(string $path, array $fields): array
@@ -306,14 +319,20 @@ abstract class JobStore
     protected function restoreFile(string $path, ?string $content): void
     {
         if ($content === null) {
-            if (is_file($path)) {
-                unlink($path);
+            if (is_file($path) && !unlink($path)) {
+                throw new \RuntimeException('Ne mogu vratiti prethodno stanje');
             }
             return;
         }
         $tmp = $path . '.' . bin2hex(random_bytes(4)) . '.tmp';
-        file_put_contents($tmp, $content);
-        rename($tmp, $path);
+        if (file_put_contents($tmp, $content) === false) {
+            @unlink($tmp);
+            throw new \RuntimeException('Ne mogu vratiti prethodno stanje');
+        }
+        if (!rename($tmp, $path)) {
+            @unlink($tmp);
+            throw new \RuntimeException('Ne mogu vratiti prethodno stanje');
+        }
     }
 
     /** .deleted (ako postoji) ide zadnji, tik prije rmdir — prekinuto brisanje ostaje NotFound. */

@@ -202,6 +202,19 @@ class PdfJobStoreTest extends TestCase
         $this->assertStringContainsString('interrupted', $status['message']);
     }
 
+    /** M5: a cron worker (job_worker.py) reading request.json later must not run a stale, already-paid job. */
+    public function testStaleRunningJobRemovesPendingRequestFile(): void
+    {
+        $id = $this->job();
+        $this->setState($id, 'phase1', gmdate('Y-m-d\TH:i:s.000000\Z', time() - 600));
+        file_put_contents("{$this->root}/$id/request.json", json_encode(['phase' => 'phase1', 'requested' => 'x']));
+
+        $status = $this->store()->status($id);
+
+        $this->assertSame('failed', $status['state']);
+        $this->assertFileDoesNotExist("{$this->root}/$id/request.json");
+    }
+
     public function testQueuedJobThatNeverStartedBecomesFailed(): void
     {
         $id = $this->store()->create($this->upload("%PDF-1.7\n"), 'x', null, null, null);

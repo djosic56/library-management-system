@@ -323,6 +323,43 @@ class CheckJobStoreTest extends TestCase
     }
 
     /** R15 (a): runner je pao nakon što je startRun zapisao konfiguraciju B, a prije run_book — units.json je još iz A. */
+    /**
+     * I1: map.json can hold raw (un-normalised) unit content — e.g. an older job, or one built before
+     * Python's build_map started normalising. configOf must clean it the same way prepareMap/cleanUnit
+     * does, so run_config.json (and therefore units.json "checked", written by check_run.run_book as an
+     * echo of run_config) is already normalised — otherwise a later reopenMap (which always normalises
+     * map.json) reports a spurious change on a reopen with no edits.
+     */
+    public function testReopenWithoutEditsAfterRawMapUnitPreviewsZeroAffected(): void
+    {
+        $id = $this->store()->create($this->upload(), 'Nantet', null, 'en-GB', ' Keep -ize. ');
+        // raw unit as an unfixed Python build_map (or an old job) could have written it: author ""
+        $this->put($id, 'map.json', ['units' => [$this->unit(['author' => ''])],
+            'shared_bibliography_start' => null, 'shared_bibliography_end' => null, 'page_count' => 4,
+            'page_labels' => ['1', '2', '3', '4'], 'page_words' => array_fill(0, 4, 100),
+            'prices' => ['input_per_m' => 2, 'output_per_m' => 8], 'usage' => ['cost_usd' => 0.1]]);
+        $this->put($id, 'map_usage.json', ['spent_usd' => 0.01, 'attempts' => 1]);
+        $this->state($id, 'map_review');
+
+        $this->store()->startRun($id, $this->store()->revision($id));
+        // run_config.json must already be normalised (author "" -> null), not a raw echo of map.json
+        $this->assertNull($this->store()->runConfig($id)['units'][0]['author']);
+
+        // units.json "checked" exactly as check_run.run_book writes it: an echo of run_config's unit content
+        $this->put($id, 'units.json', ['units' => [
+            'u1' => ['state' => 'completed', 'cost_usd' => 0.2,
+                     'checked' => $this->checked($this->store()->runConfig($id)['units'][0])],
+        ], 'spent_usd' => 0.2]);
+        $this->put($id, 'findings.json', ['next_id' => 2, 'findings' => [
+            ['id' => 'BK-001', 'unit' => 'u1', 'page' => 1, 'status' => 'CORRECTION', 'category' => 'Typo',
+             'original' => 'teh', 'replacement' => 'the', 'reason' => 'Typo.', 'review' => 'pending', 'placed' => true],
+        ]]);
+        $this->state($id, 'review');
+
+        $this->store()->reopenMap($id);   // prepareMap always normalises map.json via cleanUnit
+        $this->assertSame(0, $this->store()->previewRun($id)['affected'], 'no edits were made — nothing should be lost');
+    }
+
     public function testPreviewAfterRunnerDiedBeforeRunBookCountsChangesSinceLastCheck(): void
     {
         $id = $this->reviewed();
@@ -614,6 +651,19 @@ class CheckJobStoreTest extends TestCase
         $this->assertSame($before, $this->files($id));
     }
 
+    /** Findings must stay inside the unit the AI actually checked (run_config.json), like Python does. */
+    public function testUpdateFindingRejectsPageOutsideTheFindingsUnit(): void
+    {
+        $id = $this->reviewed();
+        $before = $this->files($id);
+        // BK-003 belongs to u2 (pages 5-8); page 2 is inside the document but inside u1, not u2
+        $this->assertRefused(fn () => $this->store()->updateFinding($id, 'BK-003', ['page' => 2]), 'unit');
+        $this->assertSame($before, $this->files($id));
+
+        $f = $this->store()->updateFinding($id, 'BK-003', ['page' => 8]);   // still inside u2 (5-8)
+        $this->assertSame(8, $f['page']);
+    }
+
     public function testLocationEditResetsPlacement(): void
     {
         $id = $this->reviewed();
@@ -652,6 +702,56 @@ class CheckJobStoreTest extends TestCase
         $this->assertSame(1, $this->store()->bulkReview($id, 'Grammar', 'rejected'));
         $this->assertSame('review', $this->store()->status($id)['state']);
         $this->assertFileDoesNotExist("{$this->root}/$id/review_report.html");
+    }
+
+    /** I2: writeJson/restoreFile must not silently ignore a failed file_put_contents/rename. */
+    public function testUpdateFindingThrowsWhenFindingsFileCannotBeWritten(): void
+    {
+        $id = $this->reviewed();
+        $path = "{$this->root}/$id/findings.json";
+        chmod($path, 0444);   // read-only: rename() over it fails (Windows) — a portable "write fails"
+        try {
+            try {
+                $this->store()->updateFinding($id, 'BK-001', ['review' => 'accepted']);
+                $this->fail('expected RuntimeException');
+            } catch (\RuntimeException $e) {
+            }
+            $this->assertSame([], glob("{$this->root}/$id/findings.json.*.tmp"), 'a failed write must not leave a tmp file behind');
+        } finally {
+            chmod($path, 0666);
+        }
+    }
+
+    /** I2: startRun must not report success (and leave a tmp file) when run_config.json cannot be written. */
+    public function testStartRunThrowsWhenRunConfigCannotBeWritten(): void
+    {
+        $id = $this->mapped();
+        mkdir("{$this->root}/$id/run_config.json");   // destination is a directory — rename() must fail
+        try {
+            $this->store()->startRun($id, $this->store()->revision($id));
+            $this->fail('expected RuntimeException');
+        } catch (\RuntimeException $e) {
+        }
+        $this->assertSame([], $this->launched, 'the launcher must not run when the config could not be locked');
+        $this->assertSame([], glob("{$this->root}/$id/run_config.json.*.tmp"), 'a failed write must not leave a tmp file behind');
+    }
+
+    /** M2: re-sending the same review decision (e.g. clicking "Accept" again) must not delete the editor PDF. */
+    public function testRepeatingTheSameReviewDecisionDoesNotMakeOutputsStale(): void
+    {
+        $id = $this->reviewed();
+        $this->store()->updateFinding($id, 'BK-002', ['review' => 'accepted']);
+        foreach (['review_comments.pdf', 'review_report.html'] as $file) {
+            file_put_contents("{$this->root}/$id/$file", 'x');
+        }
+        $this->state($id, 'done');
+
+        $f = $this->store()->updateFinding($id, 'BK-002', ['review' => 'accepted']);   // isto stanje opet
+
+        $this->assertSame('accepted', $f['review']);
+        $this->assertSame('done', $this->store()->status($id)['state'], 'nothing changed — outputs must stay valid');
+        $this->assertFileExists("{$this->root}/$id/review_comments.pdf");
+        $this->assertFileExists("{$this->root}/$id/review_report.html");
     }
 
     public function testUpdateFindingRefusedWhileBuilding(): void

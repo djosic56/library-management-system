@@ -215,12 +215,25 @@ class CheckJobStore extends JobStore
                 $review = $fields['review'];
             }
             $labels = $this->map($id)['page_labels'] ?? [];
+            $unitRanges = [];
+            foreach (($this->runConfig($id) ?? [])['units'] ?? [] as $u) {
+                $unitRanges[(string) ($u['id'] ?? '')] = [$u['start'] ?? null, $u['end'] ?? null];
+            }
             $updated = null;
-            $this->withLockedJson($this->dir($id) . '/findings.json', function (array $data) use ($findingId, $changes, $review, $labels, &$updated) {
+            $changed = false;
+            $this->withLockedJson($this->dir($id) . '/findings.json', function (array $data) use ($findingId, $changes, $review, $labels, $unitRanges, &$updated, &$changed) {
                 foreach ($data['findings'] ?? [] as $i => $f) {
                     if ($f['id'] !== $findingId) {
                         continue;
                     }
+                    // nalaz smije ostati samo unutar cjeline koju je AI stvarno provjerio (isto kao Python)
+                    if (array_key_exists('page', $changes)) {
+                        [$lo, $hi] = $unitRanges[(string) ($f['unit'] ?? '')] ?? [null, null];
+                        if ($lo === null || $changes['page'] < $lo || $changes['page'] > $hi) {
+                            throw self::invalid('page', 'The page must stay inside the finding’s unit');
+                        }
+                    }
+                    $original = $f;
                     $moved = array_filter(self::LOCATION_FIELDS, fn ($k) => array_key_exists($k, $changes) && $changes[$k] !== ($f[$k] ?? null));
                     $f = array_merge($f, $changes);
                     if ($moved) {
@@ -233,12 +246,17 @@ class CheckJobStore extends JobStore
                     } elseif ($changes && ($f['review'] ?? 'pending') !== 'rejected') {
                         $f['review'] = 'edited';
                     }
+                    // npr. ponovni klik na „Accept“ na već prihvaćenom nalazu — ništa se stvarno ne mijenja,
+                    // pa PDF za urednika/izvještaj ne smiju biti obrisani (M2)
+                    $changed = $f !== $original;
                     $data['findings'][$i] = $updated = $f;
                     return $data;
                 }
                 throw new NotFoundException('finding', 0);   // prije zapisa — findings.json ostaje isti
             });
-            $this->markOutputsStale($id);
+            if ($changed) {
+                $this->markOutputsStale($id);
+            }
             return $updated;
         });
     }
@@ -317,9 +335,8 @@ class CheckJobStore extends JobStore
 
     private static function configOf(array $map, array $job): array
     {
-        $keys = array_merge(['id'], self::UNIT_KEYS);
         return [
-            'units' => array_map(fn ($u) => array_combine($keys, array_map(fn ($k) => $u[$k] ?? null, $keys)), $map['units'] ?? []),
+            'units' => array_map(fn ($u) => self::cleanMapUnit(is_array($u) ? $u : []), $map['units'] ?? []),
             'shared_bibliography_start' => $map['shared_bibliography_start'] ?? null,
             'shared_bibliography_end' => $map['shared_bibliography_end'] ?? null,
             'english' => $job['english'] ?? 'en-GB',
@@ -499,6 +516,20 @@ class CheckJobStore extends JobStore
             throw self::invalid('english', 'Choose British or American English');
         }
         return ['english' => $english, 'instructions' => mb_substr(trim((string) $instructions), 0, self::MAX_INSTRUCTIONS)];
+    }
+
+    /**
+     * cleanUnit primijenjen na već spremljenu cjelinu iz map.json, s id-om zadržanim doslovno (već je
+     * dodijeljen — ne prolazi regex provjeru novog unosa iz forme). Bez ovoga stariji map.json (upisan
+     * prije nego je Python build_map počeo normalizirati, ili općenito bilo koja sirova vrijednost)
+     * razlikuje se od onoga što reopenMap/prepareMap upišu nakon poništavanja bez izmjena, pa
+     * affectedOf/previewRun lažno prijave promjenu (I1).
+     */
+    private static function cleanMapUnit(array $u): array
+    {
+        $clean = self::cleanUnit($u);
+        $clean['id'] = (string) ($u['id'] ?? '');
+        return $clean;
     }
 
     private static function cleanUnit(array $u): array
