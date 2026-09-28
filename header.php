@@ -60,6 +60,15 @@ require_login();
 						PDF
 					</a>
 				</li>
+				<li class="nav-item">
+					<a class="nav-link" href="check.php">
+						<svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+							<path d="M4 4h11l5 5v11H4z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+							<path d="M8 14l3 3 6-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+						</svg>
+						Check
+					</a>
+				</li>
 			<?php endif; ?>
 			<?php if (is_admin()): ?>
 				<li class="nav-item dropdown">
