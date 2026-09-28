@@ -295,11 +295,29 @@
 		});
 		card.querySelectorAll('.review-btn').forEach(b => b.classList.toggle('active', b.dataset.review === d.review));
 	}
+	// spremanje u stanju done (npr. ponovni klik na Accept ne mijenja ništa — vidi M2 na poslužitelju) može
+	// posao vratiti u review i obrisati izlaze za urednika: veze moraju nestati bez čekanja na ručni reload
+	const editorOutputs = document.getElementById('editor-outputs');
+	async function refreshIfSaveLeftDoneState() {
+		if (root.dataset.state !== 'done') return;
+		try {
+			const data = await api({ action: 'status' }, 'GET');
+			if (data.status.state !== 'done') {
+				root.dataset.state = data.status.state;
+				if (editorOutputs) editorOutputs.classList.add('d-none');
+				render(data.status, data.metrics);
+			}
+		} catch (e) { /* best-effort — an open "done" page self-corrects on the next reload/poll */ }
+	}
 	document.querySelectorAll('.finding-card').forEach(card => {
 		const fid = card.dataset.id;
 		const group = 'f:' + fid;
 		markers[group] = card.querySelector('.save-state');
-		onSaved[group] = data => { if (data && data.finding) syncCard(card, data.finding); applyFilter(); };
+		onSaved[group] = data => {
+			if (data && data.finding) syncCard(card, data.finding);
+			applyFilter();
+			refreshIfSaveLeftDoneState();
+		};
 		card.querySelectorAll('.review-btn').forEach(btn => btn.addEventListener('click', () => {
 			if (locked) return;
 			const review = btn.dataset.review;

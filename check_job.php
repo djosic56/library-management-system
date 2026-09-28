@@ -132,8 +132,10 @@ $dis = $editable ? '' : 'disabled';
 			<div class="d-flex flex-wrap gap-2 mb-3">
 				<a class="btn btn-outline-primary" href="<?php echo $h($q(['action' => 'download', 'kind' => 'all'])); ?>"><i class="bi bi-file-earmark-pdf"></i> All findings (PDF)</a>
 				<?php if ($state === 'done'): ?>
-					<a class="btn btn-primary" href="<?php echo $h($q(['action' => 'download', 'kind' => 'comments'])); ?>"><i class="bi bi-file-earmark-check"></i> PDF for the editor</a>
-					<a class="btn btn-outline-primary" href="<?php echo $h($q(['action' => 'download', 'kind' => 'report'])); ?>"><i class="bi bi-file-text"></i> Report</a>
+					<span id="editor-outputs" class="d-flex flex-wrap gap-2">
+						<a class="btn btn-primary" href="<?php echo $h($q(['action' => 'download', 'kind' => 'comments'])); ?>"><i class="bi bi-file-earmark-check"></i> PDF for the editor</a>
+						<a class="btn btn-outline-primary" href="<?php echo $h($q(['action' => 'download', 'kind' => 'report'])); ?>"><i class="bi bi-file-text"></i> Report</a>
+					</span>
 				<?php endif; ?>
 				<button id="build-pdf" class="btn btn-success ms-auto"><i class="bi bi-hammer"></i> Build PDF for the editor</button>
 			</div>

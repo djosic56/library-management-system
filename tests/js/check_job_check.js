@@ -56,7 +56,7 @@ async function scenario({ state = 'map_review', affected = 0, confirmAnswer = tr
       prices: '{"input_per_m":2,"output_per_m":8}' } }),
     'status-box': el(), progress: el(), metrics: el(), 'map-save': el(), estimate: el(), uncovered: el(), 'check-book': el(),
     english: el({ value: 'en-GB' }), instructions: el({ value: '' }), 'shared-start': el(), 'shared-end': el(),
-    'build-pdf': el(), 'delete-job': el({ dataset: { name: 'Book' } }) };
+    'build-pdf': el(), 'delete-job': el({ dataset: { name: 'Book' } }), 'editor-outputs': el() };
   const all = sel => sel === '.map-row' ? [row] : sel === '.map-field' ? fields : sel === '.finding-card' ? cards.map(c => c.card)
     : sel === '.finding-field' ? cards.flatMap(c => Object.values(c.fields)) : sel === '.review-btn' ? cards.flatMap(c => [c.accept, c.reject]) : [];
   // lokalne varijable zasjenjuju globalne: eval(src) ih koristi, pa kasni timer starog scenarija ne dira novi
@@ -64,6 +64,8 @@ async function scenario({ state = 'map_review', affected = 0, confirmAnswer = tr
   const location = { reload() { events.push('reload'); }, href: '' };
   const confirm = q => { asked.push(q); return confirmAnswer; };
   const alert = () => {};
+  // posao krenuo od 'done': prvi save_finding ga (kao poslužitelj — M2) vrati u 'review'
+  let leftDone = false;
   const fetch = async (url, opts) => {
     const action = opts.body ? opts.body.get('action') : new URL('http://x/' + url).searchParams.get('action');
     const body = opts.body ? Object.fromEntries(opts.body.entries()) : {};
@@ -80,7 +82,8 @@ async function scenario({ state = 'map_review', affected = 0, confirmAnswer = tr
     events.push('done:' + label);
     if (failIt) return { status: 422, ok: false, json: async () => ({ error: 'Not saved' }) };
     let reply = { ok: true };
-    if (action === 'status') reply = { status: { state }, metrics: { findings: 1, reviewed: 0, pending: 1, accepted: 0, not_placed: 0 }, units: {} };
+    if (action === 'status') reply = { status: { state: leftDone ? 'review' : state },
+      metrics: { findings: 1, reviewed: 0, pending: 1, accepted: 0, not_placed: 0 }, units: {} };
     else if (action === 'preview_run') reply = { affected, revision: 'rev1' };
     else if (action === 'save_map') reply = { map: {} };
     else if (action === 'save_finding') {
@@ -92,6 +95,7 @@ async function scenario({ state = 'map_review', affected = 0, confirmAnswer = tr
       if (moved) { delete f.placed; delete f.placed_page; f.page_label = 'p' + f.page; f.crop_stale = true; }
       if ('review' in body) f.review = body.review;
       else if (Object.keys(changes).length && f.review !== 'rejected') f.review = 'edited';
+      if (state === 'done') leftDone = true;   // poslužitelj (M2): stvarna izmjena u done vraća posao u review
       reply = { finding: JSON.parse(JSON.stringify(f)) };
     }
     return { status: 200, ok: true, json: async () => reply };
@@ -238,6 +242,14 @@ const order = (events, a, b) => { const i = events.indexOf(a), j = events.indexO
     snap.afterOther + ' / build=' + snap.second);
   check(r.calls.includes('start_build') && r.cards[0].marker.textContent === 'saved', 'saving that field again clears the error and allows the build',
     r.calls.join(','));
+
+  // --- spremanje u stanju done koje posao vrati u review (M1): urednički izlazi nestaju bez ručnog reloada ---
+  r = await scenario({ state: 'done', action: async ({ accept }) => { accept.fire('click'); } });
+  check(r.nodes['editor-outputs'].classList.contains('d-none'), 'editor PDF/report links are hidden once the job leaves done',
+    r.events.join(','));
+  check(r.nodes['check-job'].dataset.state === 'review', 'the page state is updated to review', r.nodes['check-job'].dataset.state);
+  check(/Review the findings/.test(r.nodes['status-box'].textContent), 'the status box shows the review message',
+    r.nodes['status-box'].textContent);
 
   // --- brisanje: lokalna spremanja završe prije, ništa ne ide poslije ---
   r = await scenario({ state: 'review', hold: ['delete'], action: async ({ nodes, reason, accept, waitHeld, held }) => {
