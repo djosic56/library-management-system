@@ -123,10 +123,28 @@ class CheckJobStoreTest extends TestCase
             ['id' => 'BK-003', 'unit' => 'u2', 'page' => 7, 'status' => 'CORRECTION', 'category' => 'Grammar', 'original' => 'was',
              'replacement' => 'were', 'reason' => 'Agreement.', 'review' => 'pending', 'placed' => true],
         ]]);
-        $this->put($id, 'units.json', ['units' => ['u1' => ['state' => 'completed', 'cost_usd' => 0.5],
-            'u2' => ['state' => 'failed', 'cost_usd' => 0.1]], 'spent_usd' => 0.6]);
+        $this->put($id, 'units.json', ['units' => [
+            'u1' => ['state' => 'completed', 'cost_usd' => 0.5, 'checked' => $this->checked($this->unit())],
+            'u2' => ['state' => 'completed', 'cost_usd' => 0.1,
+                     'checked' => $this->checked($this->unit(['id' => 'u2', 'title' => 'Ports', 'start' => 5, 'end' => 8]))],
+        ], 'spent_usd' => 0.6]);
         $this->state($id, 'review');
         return $id;
+    }
+
+    /** units.json „checked“ kako ga upisuje Python run_book (R15). */
+    private function checked(array $unit, ?int $sharedStart = null, ?int $sharedEnd = null,
+                             string $english = 'en-GB', string $instructions = 'Keep -ize.'): array
+    {
+        return ['unit' => array_combine(CheckJobStore::UNIT_KEYS, array_map(fn ($k) => $unit[$k] ?? null, CheckJobStore::UNIT_KEYS)),
+            'shared' => [$sharedStart, $sharedEnd], 'settings' => [$english, $instructions]];
+    }
+
+    private function setUnitState(string $id, string $uid, array $state): void
+    {
+        $units = $this->read($id, 'units.json');
+        $units['units'][$uid] = $state;
+        $this->put($id, 'units.json', $units);
     }
 
     private function rrmdir(string $dir): void
@@ -216,6 +234,8 @@ class CheckJobStoreTest extends TestCase
             'outside' => [[$u(['end' => 99])], 'outside'],
             'overlap' => [[$u([]), $u(['id' => 'u2', 'start' => 2, 'end' => 3])], 'overlap'],
             'language' => [[$u(['language' => 'English'])], 'language'],
+            'language newline' => [[$u(['language' => "en
+"])], 'language'],
             'kind' => [[$u(['kind' => 'appendix'])], 'kind'],
             'bibliography' => [[$u(['bibliography_start' => 5, 'bibliography_end' => 5])], 'bibliography'],
             'duplicate id' => [[$u([]), $u(['start' => 3, 'end' => 4])], 'duplicate'],
@@ -300,6 +320,46 @@ class CheckJobStoreTest extends TestCase
         $this->store()->saveMapAndSettings($id, [$this->unit(), $this->unit(['id' => 'u2', 'title' => 'Ports', 'start' => 5, 'end' => 8])],
             null, null, 'en-GB', 'Keep -ise.');
         $this->assertSame(3, $this->store()->previewRun($id)['affected']);
+    }
+
+    /** R15 (a): runner je pao nakon što je startRun zapisao konfiguraciju B, a prije run_book — units.json je još iz A. */
+    public function testPreviewAfterRunnerDiedBeforeRunBookCountsChangesSinceLastCheck(): void
+    {
+        $id = $this->reviewed();
+        $this->store()->reopenMap($id);
+        $this->store()->saveMap($id, [$this->unit(), $this->unit(['id' => 'u2', 'title' => 'Ports', 'start' => 5, 'end' => 8, 'language' => 'fr'])], null, null);
+        $this->store()->startRun($id, $this->store()->previewRun($id)['revision']);   // run_config = B
+        $this->state($id, 'failed');                                                  // run_book nije ni počeo
+        $this->store()->reopenMap($id);                                               // mapa = B
+        $this->assertSame('fr', $this->store()->runConfig($id)['units'][1]['language']);
+        $this->assertSame(2, $this->store()->previewRun($id)['affected'], 'u2 was checked with A — run_book drops its findings');
+    }
+
+    /** R15 (b): zadržava se samo nalaz dovršene cjeline čiji „checked“ odgovara predloženoj konfiguraciji. */
+    public function testOnlyFindingsOfCompletedUnitsCheckedWithTheSameConfigAreKept(): void
+    {
+        $id = $this->reviewed();
+        $this->store()->reopenMap($id);
+        $this->assertSame(0, $this->store()->previewRun($id)['affected']);
+
+        $u2 = $this->checked($this->unit(['id' => 'u2', 'title' => 'Ports', 'start' => 5, 'end' => 8]));
+        // nalazi upisani, cjelina nije dovršena (čak i uz odgovarajući „checked“)
+        $this->setUnitState($id, 'u2', ['state' => 'running', 'checked' => $u2]);
+        $this->assertSame(2, $this->store()->previewRun($id)['affected']);
+
+        $this->setUnitState($id, 'u2', ['state' => 'completed']);                     // stariji posao bez „checked“
+        $this->assertSame(2, $this->store()->previewRun($id)['affected']);
+
+        $this->setUnitState($id, 'u2', ['state' => 'completed', 'checked' => $u2]);
+        $this->assertSame(0, $this->store()->previewRun($id)['affected']);
+
+        $u2['unit']['start'] = '5';                                                  // isti tip kao u JSON-u, ne samo ista vrijednost
+        $this->setUnitState($id, 'u2', ['state' => 'completed', 'checked' => $u2]);
+        $this->assertSame(2, $this->store()->previewRun($id)['affected']);
+
+        $this->setUnitState($id, 'u2', ['state' => 'completed', 'checked' => $this->checked(
+            $this->unit(['id' => 'u2', 'title' => 'Ports', 'start' => 5, 'end' => 8]), null, null, 'en-US')]);
+        $this->assertSame(2, $this->store()->previewRun($id)['affected'], 'checked with other settings');
     }
 
     public function testPreviewRunMatchesSeparateReadsOfTheSameSnapshot(): void
@@ -633,6 +693,7 @@ class CheckJobStoreTest extends TestCase
     public function testMetricsUseTotalSpent(): void
     {
         $id = $this->reviewed();
+        $this->setUnitState($id, 'u2', ['state' => 'failed', 'cost_usd' => 0.1]);
         $this->store()->updateFinding($id, 'BK-003', ['review' => 'rejected']);
         // 0,01 (map_usage.json) + 0,6 (units.json); map.json `usage` se ne broji
         $this->assertSame(['findings' => 3, 'reviewed' => 2, 'pending' => 1, 'accepted' => 1, 'rejected' => 1,

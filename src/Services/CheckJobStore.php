@@ -63,6 +63,10 @@ class CheckJobStore extends JobStore
         return $this->readJson($this->dir($id) . '/findings.json', ['findings' => []])['findings'] ?? [];
     }
 
+    /**
+     * Samo mapa (zasebno, npr. za testove i interne pozive). API mora koristiti saveMapAndSettings —
+     * ova metoda ne uklanja marker nedovršenog zapisa (config.pending).
+     */
     public function saveMap(string $id, array $units, ?int $sharedStart, ?int $sharedEnd): array
     {
         return $this->withJobLock($id, function () use ($id, $units, $sharedStart, $sharedEnd) {
@@ -72,6 +76,10 @@ class CheckJobStore extends JobStore
         });
     }
 
+    /**
+     * Samo postavke. API mora koristiti saveMapAndSettings — ova metoda ne uklanja marker
+     * nedovršenog zapisa (config.pending).
+     */
     public function saveSettings(string $id, string $english, ?string $instructions): array
     {
         return $this->withJobLock($id, function () use ($id, $english, $instructions) {
@@ -112,7 +120,7 @@ class CheckJobStore extends JobStore
     /** Koliko postojećih nalaza nestaje ako se pokrene ova konfiguracija (ista pravila kao run_book). */
     public function affectedFindings(string $id, array $config): int
     {
-        return $this->withJobLock($id, fn () => self::affectedOf($this->runConfig($id), $this->findings($id), $config));
+        return $this->withJobLock($id, fn () => self::affectedOf($this->units($id), $this->findings($id), $config));
     }
 
     /**
@@ -127,7 +135,7 @@ class CheckJobStore extends JobStore
             $snapshot = $this->snapshot($id);
             $this->assertRunnable($id, $snapshot);
             return [
-                'affected' => self::affectedOf($snapshot['run'], $snapshot['findings'], self::configOf($snapshot['map'], $snapshot['job'])),
+                'affected' => self::affectedOf($snapshot['units'], $snapshot['findings'], self::configOf($snapshot['map'], $snapshot['job'])),
                 'revision' => self::revisionOf($snapshot),
             ];
         });
@@ -289,7 +297,7 @@ class CheckJobStore extends JobStore
                 throw new NotFoundException('check_file', 0);
             }
             $path = $dir . '/' . $files[$kind];
-        } elseif (preg_match('/^crop:(BK-\d{3,5})$/', $kind, $m)) {
+        } elseif (preg_match('/^crop:(BK-\d{3,5})\z/', $kind, $m)) {
             $path = $dir . '/crops/' . $m[1] . '.jpg';
         } else {
             throw new NotFoundException('check_file', 0);
@@ -303,7 +311,8 @@ class CheckJobStore extends JobStore
     /** Jedno čitanje svih ulaza pregleda/pokretanja (poziva se unutar withJobLock). */
     private function snapshot(string $id): array
     {
-        return ['map' => $this->map($id), 'job' => $this->job($id), 'run' => $this->runConfig($id), 'findings' => $this->findings($id)];
+        return ['map' => $this->map($id), 'job' => $this->job($id), 'run' => $this->runConfig($id), 'findings' => $this->findings($id),
+            'units' => $this->units($id)];
     }
 
     private static function configOf(array $map, array $job): array
@@ -320,36 +329,39 @@ class CheckJobStore extends JobStore
 
     private static function revisionOf(array $snapshot): string
     {
-        return sha1(json_encode([self::configOf($snapshot['map'], $snapshot['job']), $snapshot['run'], $snapshot['findings']]));
+        return sha1(json_encode([self::configOf($snapshot['map'], $snapshot['job']), $snapshot['run'], $snapshot['findings'], $snapshot['units']]));
     }
 
     /**
-     * Isto kao run_book: nalaz preživi samo ako je njegova cjelina (po id-u) i u novoj konfiguraciji
-     * s istim sadržajem UNIT_KEYS kao u zadnjoj zaključanoj, a zajednička bibliografija i postavke
-     * (english, instructions) su iste. Model i verzija uputa ne poništavaju ništa.
+     * Isto kao run_book (R15): nalaz preživi samo ako je njegova cjelina u units.json „completed“ i
+     * njezin „checked“ (s čime je stvarno provjerena) jednak je predloženoj konfiguraciji — ista cjelina
+     * (po id-u, vrijednosti UNIT_KEYS istog tipa), zajednička bibliografija i postavke. Sve ostalo
+     * (cjelina uklonjena/promijenjena, nedovršena, stariji posao bez „checked“) run_book briše.
+     * Model i verzija uputa ne poništavaju ništa.
      */
-    private static function affectedOf(?array $old, array $findings, array $config): int
+    private static function affectedOf(array $units, array $findings, array $config): int
     {
-        if ($old === null || !$findings) {
-            return 0;
-        }
-        $global = fn ($c) => [$c['shared_bibliography_start'] ?? null, $c['shared_bibliography_end'] ?? null,
-            $c['english'] ?? null, $c['instructions'] ?? null];
-        if ($global($old) !== $global($config)) {
-            return count($findings);
-        }
-        $new = [];
+        $proposed = [];
         foreach ($config['units'] ?? [] as $u) {
-            $new[$u['id'] ?? ''] = self::unitKey($u);
+            $proposed[(string) ($u['id'] ?? '')] = [
+                'unit' => self::unitValues($u),
+                'shared' => [$config['shared_bibliography_start'] ?? null, $config['shared_bibliography_end'] ?? null],
+                'settings' => [$config['english'] ?? null, $config['instructions'] ?? null],
+            ];
         }
         $kept = [];
-        foreach ($old['units'] ?? [] as $u) {
-            $uid = $u['id'] ?? '';
-            if (isset($new[$uid]) && $new[$uid] === self::unitKey($u)) {
-                $kept[$uid] = true;
+        foreach ($units as $uid => $state) {
+            $checked = $state['checked'] ?? null;
+            if (($state['state'] ?? '') !== 'completed' || !is_array($checked) || !isset($proposed[$uid])) {
+                continue;
+            }
+            $was = ['unit' => self::unitValues(is_array($checked['unit'] ?? null) ? $checked['unit'] : []),
+                'shared' => $checked['shared'] ?? null, 'settings' => $checked['settings'] ?? null];
+            if ($was === $proposed[$uid]) {
+                $kept[(string) $uid] = true;
             }
         }
-        return count(array_filter($findings, fn ($f) => !isset($kept[$f['unit'] ?? ''])));
+        return count(array_filter($findings, fn ($f) => !isset($kept[(string) ($f['unit'] ?? '')])));
     }
 
     /** Oporavak/validacija prije pokretanja: cijela predložena konfiguracija mora biti potpuna i valjana. */
@@ -360,7 +372,7 @@ class CheckJobStore extends JobStore
         }
         $config = self::configOf($snapshot['map'], $snapshot['job']);
         foreach ($config['units'] as $u) {
-            if (!preg_match('/^u\d+$/', (string) $u['id'])) {
+            if (!preg_match('/^u\d+\z/', (string) $u['id'])) {
                 throw self::invalid('map', 'A unit of the map has no id — save the map again');
             }
         }
@@ -463,16 +475,17 @@ class CheckJobStore extends JobStore
         }
     }
 
-    private static function unitKey(array $u): string
+    /** Vrijednosti UNIT_KEYS redom (strogo uspoređivanje: 5 i "5" se razlikuju, kao u Pythonu). */
+    private static function unitValues(array $u): array
     {
-        return json_encode(array_map(fn ($k) => $u[$k] ?? null, self::UNIT_KEYS));
+        return array_map(fn ($k) => array_key_exists($k, $u) ? $u[$k] : null, self::UNIT_KEYS);
     }
 
     private static function maxUnitNumber(array $units): int
     {
         $max = 0;
         foreach ($units as $u) {
-            if (preg_match('/^u(\d+)$/', (string) ($u['id'] ?? ''), $m)) {
+            if (preg_match('/^u(\d+)\z/', (string) ($u['id'] ?? ''), $m)) {
                 $max = max($max, (int) $m[1]);
             }
         }
@@ -492,7 +505,7 @@ class CheckJobStore extends JobStore
     {
         $int = fn ($v) => ($v === null || $v === '') ? null : (int) $v;
         return [
-            'id' => preg_match('/^u\d+$/', (string) ($u['id'] ?? '')) ? (string) $u['id'] : '',
+            'id' => preg_match('/^u\d+\z/', (string) ($u['id'] ?? '')) ? (string) $u['id'] : '',
             'title' => mb_substr(trim((string) ($u['title'] ?? '')), 0, 300) ?: 'Untitled',
             'author' => ($a = trim((string) ($u['author'] ?? ''))) === '' ? null : mb_substr($a, 0, 300),
             'start' => (int) ($u['start'] ?? 0), 'end' => (int) ($u['end'] ?? 0),
@@ -524,7 +537,7 @@ class CheckJobStore extends JobStore
                 throw self::invalid('map', "$name: pages overlap the previous unit");
             }
             $previousEnd = $u['end'];
-            if (!preg_match('/^[a-z]{2}$/', (string) $u['language'])) {
+            if (!preg_match('/^[a-z]{2}\z/', (string) $u['language'])) {
                 throw self::invalid('map', "$name: language must be a two-letter code such as en or fr");
             }
             if (!in_array($u['kind'], self::KINDS, true) || !in_array($u['notes'], self::NOTES, true)) {
