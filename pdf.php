@@ -58,7 +58,9 @@ $stateLabels = ['queued' => 'Queued', 'phase1' => 'AI descriptions…', 'review'
 <body>
 	<?php include 'header.php'; ?>
 	<div class="container mt-4">
-		<h1 class="h3 mb-4"><i class="bi bi-universal-access"></i> PDF Accessibility</h1>
+		<h1 class="h3 mb-2"><i class="bi bi-universal-access"></i> PDF Accessibility</h1>
+		<p class="text-muted mb-4">Makes a book PDF accessible (PDF/UA-1). AI writes a description (alt text) for every image,
+			you review and correct the descriptions, and the tool builds a tagged PDF, checks it with veraPDF and produces a report for the client.</p>
 
 		<?php if ($error): ?>
 			<div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>

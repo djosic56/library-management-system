@@ -56,7 +56,10 @@ $stateLabels = ['queued' => 'Queued', 'check_map' => 'Mapping…', 'map_review' 
 <body>
 	<?php include 'header.php'; ?>
 	<div class="container mt-4">
-		<h1 class="h3 mb-4"><i class="bi bi-spellcheck"></i> Book Check</h1>
+		<h1 class="h3 mb-2"><i class="bi bi-spellcheck"></i> Book Check</h1>
+		<p class="text-muted mb-4">AI proofreading of a book proof: spelling, grammar, punctuation, citations against the bibliography,
+			figure and table references and leftover placeholders. You confirm the chapter map, review every finding (accept, reject or edit),
+			and get a PDF with comments for the editor to apply manually in InDesign, plus a report.</p>
 		<?php if ($error): ?><div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
 
 		<div class="card mb-4">
