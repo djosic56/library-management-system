@@ -32,44 +32,39 @@ require_login();
 						Authors
 					</a>
 				</li>
-				<li class="nav-item">
-					<a class="nav-link" href="https://j-sistem.hr/graphycs/index.php" target="_blank">
+				<li class="nav-item dropdown">
+					<a class="nav-link dropdown-toggle" href="#" id="toolsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
 						<svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-							<path d="M3 3h18v18H3z" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-							<path d="M3 9h18M9 3v18" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+							<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.1-.4-.4-2.1z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
 						</svg>
-						Graphycs
+						Tools
 					</a>
+					<ul class="dropdown-menu" aria-labelledby="toolsDropdown">
+						<li>
+							<a class="dropdown-item" href="https://j-sistem.hr/graphycs/index.php" target="_blank">
+								<i class="bi bi-grid-3x3"></i> Graphycs
+							</a>
+						</li>
+						<li>
+							<a class="dropdown-item" href="https://transfer.j-sistem.hr/" target="_blank">
+								<i class="bi bi-arrow-left-right"></i> Transfer
+							</a>
+						</li>
+					<?php if (is_admin()): ?>
+						<li><hr class="dropdown-divider"></li>
+						<li>
+							<a class="dropdown-item" href="pdf.php">
+								<i class="bi bi-file-earmark-pdf"></i> PDF
+							</a>
+						</li>
+						<li>
+							<a class="dropdown-item" href="check.php">
+								<i class="bi bi-spellcheck"></i> Check
+							</a>
+						</li>
+					<?php endif; ?>
+					</ul>
 				</li>
-				<li class="nav-item">
-					<a class="nav-link" href="https://transfer.j-sistem.hr/" target="_blank">
-						<svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-							<path d="M4 12h16M14 6l6 6-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-							<path d="M20 12H8M10 18l-6-6 6-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
-						</svg>
-						Transfer
-					</a>
-				</li>
-			<?php if (is_admin()): ?>
-				<li class="nav-item">
-					<a class="nav-link" href="pdf.php">
-						<svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-							<path d="M6 2h9l5 5v15H6z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
-							<path d="M14 2v6h6M9 14h6M9 18h4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-						</svg>
-						PDF
-					</a>
-				</li>
-				<li class="nav-item">
-					<a class="nav-link" href="check.php">
-						<svg class="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-							<path d="M4 4h11l5 5v11H4z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
-							<path d="M8 14l3 3 6-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-						</svg>
-						Check
-					</a>
-				</li>
-			<?php endif; ?>
 			<?php if (is_admin()): ?>
 				<li class="nav-item dropdown">
 					<a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
