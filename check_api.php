@@ -1,5 +1,5 @@
 <?php
-// check_api.php - JSON API za Check poslove (samo admin)
+// check_api.php - JSON API za Check poslove (svi prijavljeni korisnici)
 require_once 'bootstrap.php';   // učitava config.php, koji pokreće sesiju
 require_once 'functions.php';
 require_once 'pdf_config.php';
@@ -18,7 +18,7 @@ function check_json(int $code, array $body): never
 }
 
 // Bez redirecta na login: AJAX mora dobiti 401 da JS kaže „prijava je istekla“
-if (!isset($_SESSION['user_id']) || !is_admin()) {
+if (!isset($_SESSION['user_id'])) {
     check_json(401, ['error' => 'Your session has expired — please log in again']);
 }
 

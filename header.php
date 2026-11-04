@@ -50,7 +50,6 @@ require_login();
 								<i class="bi bi-arrow-left-right"></i> Transfer
 							</a>
 						</li>
-					<?php if (is_admin()): ?>
 						<li><hr class="dropdown-divider"></li>
 						<li>
 							<a class="dropdown-item" href="pdf.php">
@@ -62,7 +61,6 @@ require_login();
 								<i class="bi bi-spellcheck"></i> Check
 							</a>
 						</li>
-					<?php endif; ?>
 					</ul>
 				</li>
 			<?php if (is_admin()): ?>

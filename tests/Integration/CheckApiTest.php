@@ -16,7 +16,7 @@ require_once __DIR__ . '/../../pdf_config.php';
  * untouched, the test only plays the part of a browser that already has a valid PHP session cookie.
  *
  * See task-16-brief.md "Obvezna dopuna pregleda" for the binding acceptance criteria this class covers:
- * 401 (anonymous + non-admin, both APIs, GET+POST, no redirect), 403 (missing/invalid CSRF on every
+ * 401 (anonymous, both APIs, GET+POST, no redirect), logged-in non-admin access, 403 (missing/invalid CSRF on every
  * mutating action), 405 (GET on every mutating action), 422 (stale revision on start_run, forbidden state
  * on save_finding), 404 (unknown job, a PDF job id used on check_api.php, a stale comments/report
  * download), and that every refused request leaves the job's files byte-identical. It also proves the R4
@@ -93,7 +93,7 @@ class CheckApiTest extends TestCase
         self::$adminUserId = (int) $adminId;
         self::$csrfToken = bin2hex(random_bytes(32));
         self::$adminSid = self::makeSession((int) $adminId, 1, self::$csrfToken);
-        self::$nonAdminSid = self::makeSession((int) $user['id'], (int) $user['level'], bin2hex(random_bytes(32)));
+        self::$nonAdminSid = self::makeSession((int) $user['id'], (int) $user['level'], self::$csrfToken);
     }
 
     public static function tearDownAfterClass(): void
@@ -337,24 +337,73 @@ class CheckApiTest extends TestCase
         $this->assertStringContainsString('session has expired', json_decode($body, true)['error'] ?? '');
     }
 
-    // ================= 401: logged in but not admin, both APIs, GET + POST, no redirect =================
+    // ================= Logged-in non-admin users have the same PDF/Check access as admins =================
 
     #[DataProvider('apis')]
-    public function testNonAdminGetReturns401JsonWithoutRedirect(string $api): void
+    public function testNonAdminGetPassesAuthAndReachesTheJobLookup(string $api): void
     {
         [$code, $headers, $body] = $this->get($api, ['action' => 'status', 'id' => str_repeat('a', 32)], self::$nonAdminSid);
-        $this->assertSame(401, $code);
+        $this->assertSame(404, $code);
         $this->assertNoRedirectHeader($headers);
-        $this->assertStringContainsString('session has expired', json_decode($body, true)['error'] ?? '');
+        $this->assertStringNotContainsString('session has expired', $body);
     }
 
     #[DataProvider('apis')]
-    public function testNonAdminPostReturns401JsonWithoutRedirect(string $api): void
+    public function testNonAdminPostPassesAuthAndCsrfAndReachesTheJobLookup(string $api): void
     {
-        [$code, $headers, $body] = $this->post($api, [], ['action' => 'delete', 'id' => str_repeat('a', 32)], self::$nonAdminSid);
-        $this->assertSame(401, $code);
+        [$code, $headers, $body] = $this->post($api, [],
+            ['action' => 'delete', 'id' => str_repeat('a', 32), 'csrf_token' => self::$csrfToken], self::$nonAdminSid);
+        $this->assertSame(404, $code);
         $this->assertNoRedirectHeader($headers);
-        $this->assertStringContainsString('session has expired', json_decode($body, true)['error'] ?? '');
+        $this->assertStringNotContainsString('session has expired', $body);
+    }
+
+    // ================= Books/Authors: read-only for non-admins, id=0 so no real row can change =================
+
+    public function testNonAdminCannotPostAnyBookOrAuthorAction(): void
+    {
+        $actions = [
+            'books.php' => ['add_book', 'edit_book', 'add_process_correct_history', 'delete_book'],
+            'authors.php' => ['add_author', 'edit_author', 'delete_author'],
+        ];
+        foreach ($actions as $page => $names) {
+            foreach ($names as $name) {
+                [$code] = $this->post($page, [], [$name => '1', 'id' => '0', 'csrf_token' => self::$csrfToken], self::$nonAdminSid);
+                $this->assertSame(403, $code, "$page $name must be refused for a non-admin");
+            }
+        }
+    }
+
+    public function testAdminPostStillReachesTheBookHandler(): void
+    {
+        [$code, , $body] = $this->post('books.php', [], ['edit_book' => '1', 'id' => '0', 'csrf_token' => self::$csrfToken], self::$adminSid);
+        $this->assertSame(200, $code);
+        $this->assertStringContainsString('Invalid book ID', $body);
+    }
+
+    public function testNonAdminSeesBooksAndAuthorsWithoutEditControls(): void
+    {
+        $controls = [
+            'books.php' => ['id="addBookModal"', 'id="editBookModal"', 'data-bs-target="#editBookModal"', 'name="delete_book"', 'name="add_process_correct_history"'],
+            'authors.php' => ['id="addAuthorModal"', 'id="editAuthorModal"', 'data-bs-target="#editAuthorModal"', 'name="delete_author"'],
+        ];
+        foreach ($controls as $page => $needles) {
+            [$code, , $body] = $this->get($page, [], self::$nonAdminSid);
+            $this->assertSame(200, $code);
+            foreach ($needles as $needle) {
+                $this->assertStringNotContainsString($needle, $body, "$page must not offer $needle to a non-admin");
+            }
+        }
+    }
+
+    public function testAdminStillSeesBookAndAuthorEditControls(): void
+    {
+        [, , $books] = $this->get('books.php', [], self::$adminSid);
+        [, , $authors] = $this->get('authors.php', [], self::$adminSid);
+        $this->assertStringContainsString('id="editBookModal"', $books);
+        $this->assertStringContainsString('id="addBookModal"', $books);
+        $this->assertStringContainsString('id="editAuthorModal"', $authors);
+        $this->assertStringContainsString('id="addAuthorModal"', $authors);
     }
 
     // ================= 403: missing/invalid CSRF on every mutating action =================

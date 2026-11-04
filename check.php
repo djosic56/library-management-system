@@ -1,9 +1,9 @@
 <?php
-// check.php - AI korektura knjige: popis poslova i upload (samo admin)
+// check.php - AI korektura knjige: popis poslova i upload (svi prijavljeni korisnici)
 require_once 'bootstrap.php';
 require_once 'functions.php';
 require_once 'pdf_config.php';
-require_admin();
+require_login();
 
 use App\Exceptions\ValidationException;
 use App\Repositories\CheckJobRepository;

@@ -1,9 +1,9 @@
 <?php
-// check_job.php - mapa knjige, napredak i pregled nalaza jednog Check posla (samo admin)
+// check_job.php - mapa knjige, napredak i pregled nalaza jednog Check posla (svi prijavljeni korisnici)
 require_once 'bootstrap.php';
 require_once 'functions.php';
 require_once 'pdf_config.php';
-require_admin();
+require_login();
 
 use App\Exceptions\NotFoundException;
 use App\Services\CheckJobStore;

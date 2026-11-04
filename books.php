@@ -83,6 +83,12 @@ $next_sort_order_title = ($sort_by === 'title' && $sort_order === 'ASC') ? 'DESC
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 	verify_csrf();
 	
+	// Books/Authors su za ne-admine samo za pregled
+	if (!is_admin()) {
+		http_response_code(403);
+		die('Access denied');
+	}
+	
 	// ADD BOOK
 	if (isset($_POST['add_book']) && is_admin()) {
 		$bookData = [
@@ -562,6 +568,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 										title="View History">
 									<i class="bi bi-clock-history"></i>
 								</button>
+								<?php if (is_admin()) { ?>
 								<button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editBookModal"
 										data-id="<?php echo $book['id']; ?>"
 										data-title="<?php echo htmlspecialchars($book['title']); ?>"
@@ -576,7 +583,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 										title="Edit">
 									<i class="bi bi-pencil"></i>
 								</button>
-								<?php if (is_admin()) { ?>
 								<form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this book?');">
 									<?php echo csrf_field(); ?>
 									<input type="hidden" name="delete_book" value="1">
@@ -589,7 +595,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 								<?php
 								// Show "Add Process/Correct History" button only for books with status "correct"
 								$status_name_lower = strtolower($book['status_name'] ?? '');
-								if (strpos($status_name_lower, 'correct') !== false) {
+								if (is_admin() && strpos($status_name_lower, 'correct') !== false) {
 								?>
 								<form method="POST" style="display:inline;" onsubmit="return confirm('Add process and correct history records for this book?');">
 									<?php echo csrf_field(); ?>
@@ -613,6 +619,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 		</a>
 	</div>
 
+	<?php if (is_admin()) { ?>
 	<!-- Add Book Modal -->
 	<div class="modal fade" id="addBookModal" tabindex="-1">
 		<div class="modal-dialog modal-wide modal-dialog-scrollable">
@@ -833,6 +840,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 			</div>
 		</div>
 	</div>
+
+	<?php } ?>
 
 	<!-- History Modal -->
 	<div class="modal fade" id="historyModal" tabindex="-1">
@@ -1171,7 +1180,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 		});
 		
 		// Check if we should open add modal (from hash)
-		if (window.location.hash === '#openAddModal') {
+		if (window.location.hash === '#openAddModal' && document.getElementById('addBookModal')) {
 			console.log('Hash detected, opening Add Book modal');
 			var addModal = new bootstrap.Modal(document.getElementById('addBookModal'));
 			addModal.show();

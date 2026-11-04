@@ -26,6 +26,12 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 	verify_csrf();
 	
+	// Books/Authors su za ne-admine samo za pregled
+	if (!is_admin()) {
+		http_response_code(403);
+		die('Access denied');
+	}
+	
 	// ADD AUTHOR
 	if (isset($_POST['add_author']) && is_admin()) {
 		$authorData = [
@@ -254,7 +260,9 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 						<th>First Name</th>
 						<th>Email</th>
 						<th>Books</th>
+						<?php if (is_admin()) { ?>
 						<th style="width: 120px">Actions</th>
+						<?php } ?>
 					</tr>
 				</thead>
 				<tbody>
@@ -278,6 +286,7 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 									<span class="text-muted">-</span>
 								<?php } ?>
 							</td>
+							<?php if (is_admin()) { ?>
 							<td class="table-actions">
 								<button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editAuthorModal"
 										data-id="<?php echo $author['id']; ?>"
@@ -287,7 +296,6 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 										title="Edit">
 									<i class="bi bi-pencil"></i>
 								</button>
-								<?php if (is_admin()) { ?>
 								<form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this author?');">
 									<?php echo csrf_field(); ?>
 									<input type="hidden" name="delete_author" value="1">
@@ -296,8 +304,8 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 										<i class="bi bi-trash"></i>
 									</button>
 								</form>
-								<?php } ?>
 							</td>
+							<?php } ?>
 						</tr>
 						<?php } ?>
 					<?php } ?>
@@ -310,6 +318,7 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 		</a>
 	</div>
 
+	<?php if (is_admin()) { ?>
 	<!-- Add Author Modal -->
 	<div class="modal fade" id="addAuthorModal" tabindex="-1">
 		<div class="modal-dialog">
@@ -386,6 +395,8 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 			</div>
 		</div>
 	</div>
+
+	<?php } ?>
 
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

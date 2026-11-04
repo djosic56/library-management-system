@@ -157,10 +157,13 @@ Books progress through different statuses tracked in the `status` table. The das
 - Sees Admin menu in navigation
 
 **Regular User (level = 2):**
-- View books and authors
-- Search and filter
-- View statistics (if granted access)
-- No Admin menu visible
+- Read-only access to Books and Authors (search, filter, history, CSV export)
+- No add, edit or delete on books and authors (server returns 403)
+- Full access to Tools (Graphycs, Transfer, PDF, Check)
+- Can change own password
+- No access to the Admin section (Admin menu hidden, pages redirect)
+
+**Anonymous:** no access; every page and API requires login.
 
 ### Book Data
 
