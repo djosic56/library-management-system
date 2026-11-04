@@ -414,6 +414,30 @@ class CheckApiTest extends TestCase
         }
     }
 
+    public function testViewPopupShowsEmptyValuesAsDashInsteadOfFormPrompts(): void
+    {
+        [, , $user] = $this->get('books.php', [], self::$nonAdminSid);
+        $this->assertStringContainsString('type="text" name="date_start" id="edit-book-date_start"', $user);
+        $this->assertStringContainsString('type="text" name="date_finish" id="edit-book-date_finish"', $user);
+        $this->assertStringNotContainsString('Select Status', $user);
+        $this->assertStringNotContainsString('Select Format', $user);
+        $this->assertStringContainsString('btn-outline-primary', $user);
+
+        [, , $admin] = $this->get('books.php', [], self::$adminSid);
+        $this->assertStringContainsString('type="date" name="date_start" id="edit-book-date_start"', $admin);
+        $this->assertStringContainsString('Select Status', $admin);
+    }
+
+    public function testDevelopmentScriptsAreNotReachableOverHttp(): void
+    {
+        $scripts = ['example_usage.php', 'test_database_connection.php', 'test_error_handler.php', 'test_helpers.php',
+            'test_interfaces.php', 'test_logger.php', 'test_refactoring.php'];
+        foreach ($scripts as $script) {
+            [$code] = $this->get($script, [], self::$adminSid);
+            $this->assertSame(404, $code, "$script must only run from the command line");
+        }
+    }
+
     // ================= 403: missing/invalid CSRF on every mutating action =================
 
     #[DataProvider('mutatingActions')]

@@ -1,4 +1,5 @@
 <?php
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 /**
  * Test Interface Implementation
  * Verify all classes correctly implement their interfaces

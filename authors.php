@@ -168,6 +168,11 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 			table.mobile-cards td.table-actions .btn { padding: 0.4rem 0.7rem; }
 			table.mobile-cards td[colspan]::before { content: ""; margin: 0; }
 		}
+		/* View popup (user razina): zaključana polja moraju ostati čitljiva */
+		fieldset[disabled] .form-control { background-color: #fff; color: #212529; }
+		fieldset[disabled] .form-check-input,
+		fieldset[disabled] .form-check-input ~ .form-check-label { opacity: 1; }
+		fieldset[disabled] label .text-danger { display: none; }
 	</style>
 </head>
 <body>
@@ -285,7 +290,7 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 								<?php } ?>
 							</td>
 							<td class="table-actions">
-								<button type="button" class="btn btn-sm <?php echo is_admin() ? 'btn-primary' : 'btn-secondary'; ?>" data-bs-toggle="modal" data-bs-target="#editAuthorModal"
+								<button type="button" class="btn btn-sm <?php echo is_admin() ? 'btn-primary' : 'btn-outline-primary'; ?>" data-bs-toggle="modal" data-bs-target="#editAuthorModal"
 										data-id="<?php echo $author['id']; ?>"
 										data-name="<?php echo htmlspecialchars($author['name']); ?>"
 										data-fname="<?php echo htmlspecialchars($author['fname']); ?>"
@@ -383,7 +388,7 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 						</div>
 						<div class="mb-3">
 							<label class="form-label">Email</label>
-							<input type="email" name="email" id="edit-author-email" class="form-control" maxlength="100">
+							<input type="email" name="email" id="edit-author-email" class="form-control" maxlength="100"<?php echo is_admin() ? '' : ' placeholder="—"'; ?>>
 						</div>
 						</fieldset>
 					</div>

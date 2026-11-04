@@ -259,7 +259,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 			opacity: 0.8;
 			transition: opacity 0.2s;
 		}
+		/* View popup (user razina): zaključana polja moraju ostati čitljiva */
+		fieldset[disabled] .form-control { background-color: #fff; color: #212529; }
+		fieldset[disabled] .form-check-input,
+		fieldset[disabled] .form-check-input ~ .form-check-label { opacity: 1; }
+		fieldset[disabled] label .text-danger { display: none; }
 		fieldset[disabled] .chip-remove { display: none; }
+		fieldset[disabled] .author-chips-container:empty::before { content: "No authors"; }
 		.author-chip .chip-remove:hover {
 			opacity: 1;
 		}
@@ -550,7 +556,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 									} ?>
 								</small>
 							</td>
-							<td data-label="Pages"><?php echo $book['pages'] ?: '-'; ?></td>
+							<td data-label="Pages"><?php echo ($book['pages'] ?? '') !== '' ? $book['pages'] : '-'; ?></td>
 							<td data-label="Start"><?php echo $book['date_start'] ?: '-'; ?></td>
 							<td data-label="Finish"><?php echo $book['date_finish'] ?: '-'; ?></td>
 							<td data-label="Status"><?php echo htmlspecialchars($book['status_name'] ?? '-'); ?></td>
@@ -569,7 +575,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 										title="View History">
 									<i class="bi bi-clock-history"></i>
 								</button>
-								<button type="button" class="btn btn-sm <?php echo is_admin() ? 'btn-primary' : 'btn-secondary'; ?>" data-bs-toggle="modal" data-bs-target="#editBookModal"
+								<button type="button" class="btn btn-sm <?php echo is_admin() ? 'btn-primary' : 'btn-outline-primary'; ?>" data-bs-toggle="modal" data-bs-target="#editBookModal"
 										data-id="<?php echo $book['id']; ?>"
 										data-title="<?php echo htmlspecialchars($book['title']); ?>"
 										data-pages="<?php echo $book['pages']; ?>"
@@ -761,15 +767,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 						<div class="row mb-3">
 							<div class="col-md-4">
 								<label class="form-label">Pages</label>
-								<input type="number" name="pages" id="edit-book-pages" class="form-control" min="0">
+								<input type="number" name="pages" id="edit-book-pages" class="form-control" min="0"<?php echo is_admin() ? '' : ' placeholder="—"'; ?>>
 							</div>
 							<div class="col-md-4">
 								<label class="form-label">Start Date</label>
-								<input type="date" name="date_start" id="edit-book-date_start" class="form-control">
+								<input type="<?php echo is_admin() ? 'date' : 'text'; ?>" name="date_start" id="edit-book-date_start" class="form-control" placeholder="—">
 							</div>
 							<div class="col-md-4">
 								<label class="form-label">Finish Date</label>
-								<input type="date" name="date_finish" id="edit-book-date_finish" class="form-control">
+								<input type="<?php echo is_admin() ? 'date' : 'text'; ?>" name="date_finish" id="edit-book-date_finish" class="form-control" placeholder="—">
 							</div>
 						</div>
 						
@@ -777,7 +783,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 							<div class="col-md-4">
 								<label class="form-label">Status</label>
 								<select name="id_status" id="edit-book-id_status" class="form-control">
-									<option value="">Select Status</option>
+									<option value=""><?php echo is_admin() ? 'Select Status' : '—'; ?></option>
 									<?php foreach ($statuses as $status) { ?>
 										<option value="<?php echo $status['id']; ?>"><?php echo htmlspecialchars($status['name']); ?></option>
 									<?php } ?>
@@ -786,7 +792,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 							<div class="col-md-4">
 								<label class="form-label">Format</label>
 								<select name="id_formating" id="edit-book-id_formating" class="form-control">
-									<option value="">Select Format</option>
+									<option value=""><?php echo is_admin() ? 'Select Format' : '—'; ?></option>
 									<?php foreach ($formatings as $format) { ?>
 										<option value="<?php echo $format['id']; ?>"><?php echo htmlspecialchars($format['name']); ?></option>
 									<?php } ?>
@@ -831,7 +837,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 						
 						<div class="mb-3">
 							<label class="form-label">Note</label>
-							<textarea name="note" id="edit-book-note" class="form-control" rows="3"<?php if (is_admin()) { ?> placeholder="Add any additional notes about this book..."<?php } ?>></textarea>
+							<textarea name="note" id="edit-book-note" class="form-control" rows="3" placeholder="<?php echo is_admin() ? 'Add any additional notes about this book...' : '—'; ?>"></textarea>
 						</div>
 						</fieldset>
 					</div>
@@ -904,10 +910,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 			}
 			
 			// Create chip
-			const chip = `<span class="author-chip" data-author-id="${authorId}">
-				<i class="bi bi-person-fill"></i> ${authorName}
-				<span class="chip-remove" data-author-id="${authorId}">&times;</span>
-			</span>`;
+			const chip = $('<span class="author-chip"></span>').attr('data-author-id', authorId)
+				.append('<i class="bi bi-person-fill"></i> ')
+				.append(document.createTextNode(authorName + ' '))
+				.append($('<span class="chip-remove">&times;</span>').attr('data-author-id', authorId));
 			
 			$(`#${modalPrefix}author-chips`).append(chip);
 			$(`#${modalPrefix}author-chips`).addClass('has-chips');
@@ -1082,16 +1088,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 				dataType: 'json',
 				success: function(response) {
 					if (response.success && response.history.length > 0) {
-						let html = '<div class="table-responsive"><table class="table table-striped">';
-						html += '<thead><tr><th>Date</th><th>Status</th></tr></thead><tbody>';
+						const rows = $('<tbody></tbody>');
 						response.history.forEach(function(item) {
-							html += '<tr>';
-							html += '<td>' + item.inserted + '</td>';
-							html += '<td><span class="badge bg-primary">' + item.status_name + '</span></td>';
-							html += '</tr>';
+							rows.append($('<tr></tr>')
+								.append($('<td></td>').text(item.inserted))
+								.append($('<td></td>').append($('<span class="badge bg-primary"></span>').text(item.status_name))));
 						});
-						html += '</tbody></table></div>';
-						$('#history-content').html(html);
+						const table = $('<table class="table table-striped"><thead><tr><th>Date</th><th>Status</th></tr></thead></table>').append(rows);
+						$('#history-content').empty().append($('<div class="table-responsive"></div>').append(table));
 					} else {
 						$('#history-content').html('<div class="alert alert-info">No history found for this book.</div>');
 					}
