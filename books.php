@@ -259,6 +259,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 			opacity: 0.8;
 			transition: opacity 0.2s;
 		}
+		fieldset[disabled] .chip-remove { display: none; }
 		.author-chip .chip-remove:hover {
 			opacity: 1;
 		}
@@ -568,8 +569,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 										title="View History">
 									<i class="bi bi-clock-history"></i>
 								</button>
-								<?php if (is_admin()) { ?>
-								<button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editBookModal"
+								<button type="button" class="btn btn-sm <?php echo is_admin() ? 'btn-primary' : 'btn-secondary'; ?>" data-bs-toggle="modal" data-bs-target="#editBookModal"
 										data-id="<?php echo $book['id']; ?>"
 										data-title="<?php echo htmlspecialchars($book['title']); ?>"
 										data-pages="<?php echo $book['pages']; ?>"
@@ -580,9 +580,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 										data-invoice="<?php echo $book['invoice']; ?>"
 										data-note="<?php echo htmlspecialchars($book['note']); ?>"
 										data-authors='<?php echo htmlspecialchars(json_encode($book['authors_list'] ?? [], JSON_HEX_APOS | JSON_HEX_QUOT)); ?>'
-										title="Edit">
-									<i class="bi bi-pencil"></i>
+										title="<?php echo is_admin() ? 'Edit' : 'View'; ?>">
+									<i class="bi <?php echo is_admin() ? 'bi-pencil' : 'bi-eye'; ?>"></i>
 								</button>
+								<?php if (is_admin()) { ?>
 								<form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this book?');">
 									<?php echo csrf_field(); ?>
 									<input type="hidden" name="delete_book" value="1">
@@ -733,20 +734,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 		</div>
 	</div>
 
-	<!-- Edit Book Modal -->
+	<?php } ?>
+
+	<!-- Edit/View Book Modal -->
 	<div class="modal fade" id="editBookModal" tabindex="-1">
 		<div class="modal-dialog modal-wide modal-dialog-scrollable">
 			<div class="modal-content">
 				<div class="modal-header bg-primary text-white">
 					<h5 class="modal-title">
-						<i class="bi bi-pencil"></i> Edit Book
+						<?php if (is_admin()) { ?><i class="bi bi-pencil"></i> Edit Book<?php } else { ?><i class="bi bi-eye"></i> View Book<?php } ?>
 					</h5>
 					<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
 				</div>
 				<form method="POST" id="editBookForm">
-					<?php echo csrf_field(); ?>
+					<?php if (is_admin()) { echo csrf_field(); } ?>
 					<div class="modal-body">
-						<input type="hidden" name="edit_book" value="1">
+						<fieldset<?php echo is_admin() ? '' : ' disabled'; ?>>
+						<?php if (is_admin()) { ?><input type="hidden" name="edit_book" value="1"><?php } ?>
 						<input type="hidden" name="id" id="edit-book-id">
 						
 						<div class="mb-3">
@@ -802,6 +806,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 								<i class="bi bi-people"></i> Authors
 							</label>
 							<div id="author-chips" class="author-chips-container"></div>
+							<?php if (is_admin()) { ?>
 							<div class="row author-search-row">
 								<div class="col-md-7">
 									<input type="text" id="author-search" class="form-control" placeholder="Search authors (min 3 chars)...">
@@ -817,31 +822,33 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 									</select>
 								</div>
 							</div>
-							<input type="hidden" name="selected-authors" id="selected-authors">
 							<small class="form-text text-muted">
 								<i class="bi bi-info-circle"></i> Search or select from recent authors to add them.
 							</small>
+							<?php } ?>
+							<input type="hidden" name="selected-authors" id="selected-authors">
 						</div>
 						
 						<div class="mb-3">
 							<label class="form-label">Note</label>
-							<textarea name="note" id="edit-book-note" class="form-control" rows="3" placeholder="Add any additional notes about this book..."></textarea>
+							<textarea name="note" id="edit-book-note" class="form-control" rows="3"<?php if (is_admin()) { ?> placeholder="Add any additional notes about this book..."<?php } ?>></textarea>
 						</div>
+						</fieldset>
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-							<i class="bi bi-x-circle"></i> Cancel
+							<i class="bi bi-x-circle"></i> <?php echo is_admin() ? 'Cancel' : 'Close'; ?>
 						</button>
+						<?php if (is_admin()) { ?>
 						<button type="submit" class="btn btn-primary">
 							<i class="bi bi-save"></i> Save Changes
 						</button>
+						<?php } ?>
 					</div>
 				</form>
 			</div>
 		</div>
 	</div>
-
-	<?php } ?>
 
 	<!-- History Modal -->
 	<div class="modal fade" id="historyModal" tabindex="-1">

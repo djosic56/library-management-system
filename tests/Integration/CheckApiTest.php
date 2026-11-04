@@ -381,16 +381,22 @@ class CheckApiTest extends TestCase
         $this->assertStringContainsString('Invalid book ID', $body);
     }
 
-    public function testNonAdminSeesBooksAndAuthorsWithoutEditControls(): void
+    public function testNonAdminGetsReadOnlyViewInsteadOfEditControls(): void
     {
-        $controls = [
-            'books.php' => ['id="addBookModal"', 'id="editBookModal"', 'data-bs-target="#editBookModal"', 'name="delete_book"', 'name="add_process_correct_history"'],
-            'authors.php' => ['id="addAuthorModal"', 'id="editAuthorModal"', 'data-bs-target="#editAuthorModal"', 'name="delete_author"'],
+        $pages = [
+            'books.php' => ['modal' => 'id="editBookModal"', 'forbidden' => ['id="addBookModal"', 'name="edit_book"',
+                'name="delete_book"', 'name="add_process_correct_history"', 'id="author-search"', 'Save Changes']],
+            'authors.php' => ['modal' => 'id="editAuthorModal"', 'forbidden' => ['id="addAuthorModal"', 'name="edit_author"',
+                'name="delete_author"', 'Save Changes']],
         ];
-        foreach ($controls as $page => $needles) {
+        foreach ($pages as $page => $expected) {
             [$code, , $body] = $this->get($page, [], self::$nonAdminSid);
             $this->assertSame(200, $code);
-            foreach ($needles as $needle) {
+            $this->assertStringContainsString($expected['modal'], $body);
+            $this->assertStringContainsString('<fieldset disabled>', $body);
+            $this->assertStringContainsString('title="View"', $body);
+            $this->assertStringNotContainsString('title="Edit"', $body);
+            foreach ($expected['forbidden'] as $needle) {
                 $this->assertStringNotContainsString($needle, $body, "$page must not offer $needle to a non-admin");
             }
         }
@@ -398,12 +404,14 @@ class CheckApiTest extends TestCase
 
     public function testAdminStillSeesBookAndAuthorEditControls(): void
     {
-        [, , $books] = $this->get('books.php', [], self::$adminSid);
-        [, , $authors] = $this->get('authors.php', [], self::$adminSid);
-        $this->assertStringContainsString('id="editBookModal"', $books);
-        $this->assertStringContainsString('id="addBookModal"', $books);
-        $this->assertStringContainsString('id="editAuthorModal"', $authors);
-        $this->assertStringContainsString('id="addAuthorModal"', $authors);
+        foreach (['books.php' => 'Book', 'authors.php' => 'Author'] as $page => $entity) {
+            [, , $body] = $this->get($page, [], self::$adminSid);
+            $this->assertStringContainsString('id="edit' . $entity . 'Modal"', $body);
+            $this->assertStringContainsString('id="add' . $entity . 'Modal"', $body);
+            $this->assertStringContainsString('title="Edit"', $body);
+            $this->assertStringContainsString('Save Changes', $body);
+            $this->assertStringNotContainsString('<fieldset disabled>', $body);
+        }
     }
 
     // ================= 403: missing/invalid CSRF on every mutating action =================
