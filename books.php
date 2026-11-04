@@ -319,7 +319,62 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 		.table-actions {
 			white-space: nowrap;
 		}
-	</style>
+	
+			/* ===== Mobilni prikaz (samo telefon, < 768px). Desktop ostaje netaknut. ===== */
+			@media (max-width: 767.98px) {
+				table.mobile-cards thead { display: none; }
+				table.mobile-cards,
+				table.mobile-cards tbody,
+				table.mobile-cards tr,
+				table.mobile-cards td { display: block; width: 100%; }
+				table.mobile-cards tr {
+					margin-bottom: 0.85rem;
+					border: 1px solid #dee2e6;
+					border-radius: 0.6rem;
+					padding: 0.6rem 0.85rem;
+					background: #fff;
+					box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+				}
+				table.mobile-cards.table-striped > tbody > tr > td {
+					--bs-table-accent-bg: transparent;
+					background-color: transparent;
+				}
+				table.mobile-cards td {
+					text-align: right;
+					padding: 0.4rem 0;
+					border: none;
+					border-bottom: 1px solid #f1f1f1;
+				}
+				table.mobile-cards td:last-child { border-bottom: none; }
+				table.mobile-cards td::before {
+					content: attr(data-label);
+					float: left;
+					font-weight: 600;
+					color: #6c757d;
+					margin-right: 1rem;
+					text-align: left;
+				}
+				table.mobile-cards td[data-label="Title"] {
+					text-align: left;
+					font-size: 1.1rem;
+					border-bottom: 2px solid #e9ecef;
+					padding-bottom: 0.5rem;
+					margin-bottom: 0.25rem;
+				}
+				table.mobile-cards td[data-label="Title"]::before { content: ""; margin: 0; }
+				table.mobile-cards td.table-actions { text-align: left; white-space: normal; }
+				table.mobile-cards td.table-actions::before {
+					content: "Actions";
+					display: block;
+					float: none;
+					margin-bottom: 0.35rem;
+				}
+				table.mobile-cards td.table-actions .btn,
+				table.mobile-cards td.table-actions form { margin: 0.15rem 0.3rem 0.15rem 0; }
+				table.mobile-cards td.table-actions .btn { padding: 0.4rem 0.7rem; }
+				table.mobile-cards td[colspan]::before { content: ""; margin: 0; }
+			}
+		</style>
 </head>
 <body>
 	<?php include 'header.php'; ?>
@@ -423,7 +478,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 		
 		<!-- Books Table -->
 		<div class="table-responsive">
-			<table class="table table-striped table-hover">
+			<table class="table table-striped table-hover mobile-cards">
 				<thead class="table-dark">
 					<tr>
 						<th style="width: 60px">
@@ -456,9 +511,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 					<?php } else { ?>
 						<?php foreach ($books as $book) { ?>
 						<tr>
-							<td><?php echo $book['id']; ?></td>
-							<td><strong><?php echo htmlspecialchars($book['title']); ?></strong></td>
-							<td>
+							<td data-label="ID"><?php echo $book['id']; ?></td>
+							<td data-label="Title"><strong><?php echo htmlspecialchars($book['title']); ?></strong></td>
+							<td data-label="Authors">
 								<small class="text-muted">
 									<?php if (!empty($book['authors_list'])) { 
 										$author_links = [];
@@ -488,12 +543,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 									} ?>
 								</small>
 							</td>
-							<td><?php echo $book['pages'] ?: '-'; ?></td>
-							<td><?php echo $book['date_start'] ?: '-'; ?></td>
-							<td><?php echo $book['date_finish'] ?: '-'; ?></td>
-							<td><?php echo htmlspecialchars($book['status_name'] ?? '-'); ?></td>
-							<td><?php echo htmlspecialchars($book['format_shortname'] ?? '-'); ?></td>
-							<td>
+							<td data-label="Pages"><?php echo $book['pages'] ?: '-'; ?></td>
+							<td data-label="Start"><?php echo $book['date_start'] ?: '-'; ?></td>
+							<td data-label="Finish"><?php echo $book['date_finish'] ?: '-'; ?></td>
+							<td data-label="Status"><?php echo htmlspecialchars($book['status_name'] ?? '-'); ?></td>
+							<td data-label="Format"><?php echo htmlspecialchars($book['format_shortname'] ?? '-'); ?></td>
+							<td data-label="Invoice">
 								<?php if ($book['invoice']) { ?>
 									<span class="badge bg-success">Yes</span>
 								<?php } else { ?>

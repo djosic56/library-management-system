@@ -115,6 +115,54 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 	<link rel="stylesheet" href="css/style.css">
+	<style>
+		/* ===== Mobilni prikaz (samo telefon, < 768px). Desktop ostaje netaknut. ===== */
+		@media (max-width: 767.98px) {
+			table.mobile-cards thead { display: none; }
+			table.mobile-cards,
+			table.mobile-cards tbody,
+			table.mobile-cards tr,
+			table.mobile-cards td { display: block; width: 100%; }
+			table.mobile-cards tr {
+				margin-bottom: 0.85rem;
+				border: 1px solid #dee2e6;
+				border-radius: 0.6rem;
+				padding: 0.6rem 0.85rem;
+				background: #fff;
+				box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+			}
+			table.mobile-cards.table-striped > tbody > tr > td {
+				--bs-table-accent-bg: transparent;
+				background-color: transparent;
+			}
+			table.mobile-cards td {
+				text-align: right;
+				padding: 0.4rem 0;
+				border: none;
+				border-bottom: 1px solid #f1f1f1;
+			}
+			table.mobile-cards td:last-child { border-bottom: none; }
+			table.mobile-cards td::before {
+				content: attr(data-label);
+				float: left;
+				font-weight: 600;
+				color: #6c757d;
+				margin-right: 1rem;
+				text-align: left;
+			}
+			table.mobile-cards td.table-actions { text-align: left; white-space: normal; }
+			table.mobile-cards td.table-actions::before {
+				content: "Actions";
+				display: block;
+				float: none;
+				margin-bottom: 0.35rem;
+			}
+			table.mobile-cards td.table-actions .btn,
+			table.mobile-cards td.table-actions form { margin: 0.15rem 0.3rem 0.15rem 0; }
+			table.mobile-cards td.table-actions .btn { padding: 0.4rem 0.7rem; }
+			table.mobile-cards td[colspan]::before { content: ""; margin: 0; }
+		}
+	</style>
 </head>
 <body>
 	<?php include 'header.php'; ?>
@@ -190,7 +238,7 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 		
 		<!-- Authors Table -->
 		<div class="table-responsive">
-			<table class="table table-striped table-hover">
+			<table class="table table-striped table-hover mobile-cards">
 				<thead class="table-dark">
 					<tr>
 						<th style="width: 80px">
@@ -219,18 +267,18 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 					<?php } else { ?>
 						<?php foreach ($authors as $author) { ?>
 						<tr>
-							<td><?php echo $author['id']; ?></td>
-							<td><?php echo htmlspecialchars($author['name']); ?></td>
-							<td><?php echo htmlspecialchars($author['fname']); ?></td>
-							<td><?php echo htmlspecialchars($author['email'] ?? '-'); ?></td>
-							<td>
+							<td data-label="ID"><?php echo $author['id']; ?></td>
+							<td data-label="Last Name"><?php echo htmlspecialchars($author['name']); ?></td>
+							<td data-label="First Name"><?php echo htmlspecialchars($author['fname']); ?></td>
+							<td data-label="Email"><?php echo htmlspecialchars($author['email'] ?? '-'); ?></td>
+							<td data-label="Books">
 								<?php if ($author['books']) { ?>
 									<small class="text-muted"><?php echo htmlspecialchars($author['books']); ?></small>
 								<?php } else { ?>
 									<span class="text-muted">-</span>
 								<?php } ?>
 							</td>
-							<td>
+							<td class="table-actions">
 								<button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editAuthorModal"
 										data-id="<?php echo $author['id']; ?>"
 										data-name="<?php echo htmlspecialchars($author['name']); ?>"
