@@ -20,7 +20,7 @@ class BookServiceTest extends TestCase
             'host' => 'localhost',
             'database' => 'jsistem_ap_test',
             'username' => 'jsistem_apuser',
-            'password' => 'pAP3779',
+            'password' => getenv('DB_PASS') ?: '',
         ];
 
         $database = Database::getInstance($config);

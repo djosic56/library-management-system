@@ -14,7 +14,7 @@ class TestHelper
         $host = getenv('DB_HOST') ?: 'localhost';
         $dbname = getenv('DB_NAME') ?: 'jsistem_ap_test';
         $user = getenv('DB_USER') ?: 'jsistem_apuser';
-        $pass = getenv('DB_PASS') ?: 'pAP3779';
+        $pass = getenv('DB_PASS') ?: '';
 
         try {
             $pdo = new PDO(

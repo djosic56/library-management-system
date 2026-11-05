@@ -2,10 +2,10 @@
 // config.php - Improved version with security settings
 
 // Database configuration
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'jsistem_ap');
-define('DB_USER', 'jsistem_apuser');
-define('DB_PASS', 'pAP3779');
+define('DB_HOST', 'CHANGE_ME');
+define('DB_NAME', 'CHANGE_ME');
+define('DB_USER', 'CHANGE_ME');
+define('DB_PASS', 'CHANGE_ME');
 
 // User level constants
 define('USER_LEVEL_ADMIN', 1);

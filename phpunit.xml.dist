@@ -26,6 +26,6 @@
         <env name="DB_HOST" value="localhost"/>
         <env name="DB_NAME" value="jsistem_ap_test"/>
         <env name="DB_USER" value="jsistem_apuser"/>
-        <env name="DB_PASS" value="pAP3779"/>
+        <env name="DB_PASS" value="CHANGE_ME"/>
     </php>
 </phpunit>

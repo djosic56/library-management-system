@@ -30,3 +30,12 @@ arh*.zip
 *.tmp
 *.bak
 tmpclaude-*
+
+# Local config with credentials (copy from config.example.php)
+config.php
+phpunit.xml
+
+# Test and tool leftovers
+.phpunit.result.cache
+tmpclaude-*
+nul

@@ -12,7 +12,7 @@ return [
         'host' => 'localhost',
         'database' => 'jsistem_ap',
         'username' => 'jsistem_apuser',
-        'password' => 'pAP3779',
+        'password' => getenv('DB_PASS') ?: '',
         'charset' => 'utf8mb4',
     ],
 

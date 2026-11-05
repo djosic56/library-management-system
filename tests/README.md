@@ -52,7 +52,7 @@ source D:/home/sites/j-sistem/web/ap_claude/tests/setup_test_database.sql
 Test database configuration is in `phpunit.xml`. Default settings:
 - Database: `jsistem_ap_test`
 - User: `jsistem_apuser`
-- Password: `pAP3779`
+- Password: set `DB_PASS` in your local `phpunit.xml` (copy from `phpunit.xml.dist`)
 
 Modify the `<php>` section in `phpunit.xml` if your credentials differ.
 
