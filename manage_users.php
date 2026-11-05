@@ -4,8 +4,9 @@ require_once 'bootstrap.php';
 require_once 'functions.php';
 require_admin();
 
-$error = '';
-$success = '';
+$error = $_SESSION['flash_error'] ?? '';
+$success = $_SESSION['flash_success'] ?? '';
+unset($_SESSION['flash_error'], $_SESSION['flash_success']);
 $users = [];
 $total_pages = 0;
 
@@ -176,6 +177,15 @@ try {
 } catch (PDOException $e) {
 	$error = "Database error occurred.";
 	error_log("Manage users error: " . $e->getMessage());
+}
+
+// Nakon POST-a preusmjeri na GET, da osvježavanje i Back ne šalju formu ponovno
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+	$_SESSION['flash_error'] = $error;
+	$_SESSION['flash_success'] = $success;
+	$query = $_SERVER['QUERY_STRING'] ?? '';
+	header('Location: manage_users.php' . ($query !== '' ? '?' . $query : ''));
+	exit;
 }
 
 // Pagination range

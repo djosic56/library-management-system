@@ -37,8 +37,9 @@ $filter_invoice = trim($_GET['filter_invoice'] ?? '');
 $page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, ['options' => ['default' => 1, 'min_range' => 1]]) ?? 1;
 $sort_by = trim($_GET['sort_by'] ?? 'id');
 $sort_order = trim($_GET['sort_order'] ?? 'DESC');
-$error = '';
-$success = '';
+$error = $_SESSION['flash_error'] ?? '';
+$success = $_SESSION['flash_success'] ?? '';
+unset($_SESSION['flash_error'], $_SESSION['flash_success']);
 
 try {
 	$books = $bookService->getBooks($search_title, $search_author, $filter_status !== '' ? (int)$filter_status : null, $filter_invoice !== '' ? (int)$filter_invoice : null, $page, $sort_by, $sort_order);
@@ -201,6 +202,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 			$error = $e->getMessage();
 			error_log("Add process/correct history error: " . $e->getMessage());
 		}
+
+		// Preusmjeri na GET, da osvježavanje ne doda iste zapise povijesti još jednom
+		$_SESSION['flash_error'] = $error;
+		$_SESSION['flash_success'] = $success;
+		$query = $_SERVER['QUERY_STRING'] ?? '';
+		header('Location: books.php' . ($query !== '' ? '?' . $query : ''));
+		exit;
 	}
 
 	// DELETE BOOK

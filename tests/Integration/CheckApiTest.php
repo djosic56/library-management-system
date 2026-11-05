@@ -428,6 +428,63 @@ class CheckApiTest extends TestCase
         $this->assertStringContainsString('Select Status', $admin);
     }
 
+    public function testDeletingUserKeepsTheirLogAndRedirectsSoRefreshCannotResubmit(): void
+    {
+        $name = 'tmp_delete_' . bin2hex(random_bytes(4));
+        self::$pdo->prepare("INSERT INTO users (username, password, level) VALUES (?, 'x', 2)")->execute([$name]);
+        $id = (int) self::$pdo->lastInsertId();
+        self::$pdo->prepare("INSERT INTO user_log (user_id, action, details) VALUES (?, 'login', ?)")->execute([$id, $name]);
+
+        try {
+            [$code, $headers] = $this->post('manage_users.php', ['page' => 1],
+                ['delete_user' => '1', 'id' => (string) $id, 'csrf_token' => self::$csrfToken], self::$adminSid);
+            $this->assertSame(302, $code);
+            $this->assertContains('Location: manage_users.php?page=1', $headers);
+
+            [, , $body] = $this->get('manage_users.php', ['page' => 1], self::$adminSid);
+            $this->assertStringContainsString('User deleted successfully', $body);
+            [, , $again] = $this->get('manage_users.php', ['page' => 1], self::$adminSid);
+            $this->assertStringNotContainsString('User deleted successfully', $again, 'Poruka se prikazuje samo jednom');
+
+            $stmt = self::$pdo->prepare('SELECT COUNT(*) FROM users WHERE id = ?');
+            $stmt->execute([$id]);
+            $this->assertSame(0, (int) $stmt->fetchColumn());
+            $stmt = self::$pdo->prepare('SELECT COUNT(*) FROM user_log WHERE details = ? AND user_id IS NULL');
+            $stmt->execute([$name]);
+            $this->assertSame(1, (int) $stmt->fetchColumn());
+        } finally {
+            self::$pdo->prepare('DELETE FROM user_log WHERE details = ? OR details LIKE ?')->execute([$name, "%($name)"]);
+            self::$pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+        }
+    }
+
+    public function testAddingProcessHistoryRedirectsSoRefreshCannotDuplicateRecords(): void
+    {
+        $title = 'tmp_history_' . bin2hex(random_bytes(4));
+        self::$pdo->prepare('INSERT INTO book (title) VALUES (?)')->execute([$title]);
+        $id = (int) self::$pdo->lastInsertId();
+
+        try {
+            [$code, $headers] = $this->post('books.php', ['page' => 1],
+                ['add_process_correct_history' => '1', 'id' => (string) $id, 'csrf_token' => self::$csrfToken], self::$adminSid);
+            $this->assertSame(302, $code);
+            $this->assertContains('Location: books.php?page=1', $headers);
+
+            [, , $body] = $this->get('books.php', ['page' => 1], self::$adminSid);
+            $this->assertStringContainsString('history records added successfully', $body);
+            [, , $again] = $this->get('books.php', ['page' => 1], self::$adminSid);
+            $this->assertStringNotContainsString('history records added successfully', $again, 'Poruka se prikazuje samo jednom');
+
+            $stmt = self::$pdo->prepare('SELECT COUNT(*) FROM history WHERE id_book = ?');
+            $stmt->execute([$id]);
+            $this->assertSame(2, (int) $stmt->fetchColumn());
+        } finally {
+            self::$pdo->prepare('DELETE FROM user_log WHERE details = ?')->execute(["Added process/correct history for book ID: $id"]);
+            self::$pdo->prepare('DELETE FROM history WHERE id_book = ?')->execute([$id]);
+            self::$pdo->prepare('DELETE FROM book WHERE id = ?')->execute([$id]);
+        }
+    }
+
     public function testDevelopmentScriptsAreNotReachableOverHttp(): void
     {
         $scripts = ['example_usage.php', 'test_database_connection.php', 'test_error_handler.php', 'test_helpers.php',
