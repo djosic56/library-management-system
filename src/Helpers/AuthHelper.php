@@ -11,6 +11,8 @@ use PDOException;
  */
 class AuthHelper
 {
+    private const SESSION_IDLE_TIMEOUT = 1800;
+
     /**
      * Check login attempts and apply rate limiting
      */
@@ -45,6 +47,36 @@ class AuthHelper
         $stmt = $pdo->prepare("INSERT INTO login_attempt (username, user_id, ip_address, success)
                                VALUES (?, ?, ?, ?)");
         $stmt->execute([$username, $userId, $ip, $success ? 1 : 0]);
+    }
+
+    /**
+     * Keep the session in line with the database on every request: end it when the
+     * user was deleted or idle too long, and apply a changed user level at once.
+     */
+    public static function validateSession(): void
+    {
+        if (!isset($_SESSION['user_id'])) {
+            return;
+        }
+
+        $lastActivity = $_SESSION['last_activity'] ?? time();
+        if (time() - $lastActivity > self::SESSION_IDLE_TIMEOUT) {
+            $_SESSION = [];
+            return;
+        }
+
+        $pdo = Database::getInstance()->getConnection();
+        $stmt = $pdo->prepare("SELECT level FROM users WHERE id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        $level = $stmt->fetchColumn();
+
+        if ($level === false) {
+            $_SESSION = [];
+            return;
+        }
+
+        $_SESSION['level'] = (int)$level;
+        $_SESSION['last_activity'] = time();
     }
 
     /**

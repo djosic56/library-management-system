@@ -351,7 +351,7 @@ $next_sort_order_inserted = ($sort_by === 'inserted' && $sort_order === 'ASC') ?
 										data-id="<?php echo $user['id']; ?>"
 										data-username="<?php echo htmlspecialchars($user['username']); ?>"
 										data-level="<?php echo $user['level']; ?>"
-										title="Edit User">
+										title="Edit User" aria-label="Edit User">
 									<i class="bi bi-pencil"></i>
 								</button>
 								<?php if ($user['id'] != $_SESSION['user_id']) { ?>
@@ -359,7 +359,7 @@ $next_sort_order_inserted = ($sort_by === 'inserted' && $sort_order === 'ASC') ?
 									<?php echo csrf_field(); ?>
 									<input type="hidden" name="delete_user" value="1">
 									<input type="hidden" name="id" value="<?php echo $user['id']; ?>">
-									<button type="submit" class="btn btn-sm btn-danger" title="Delete User">
+									<button type="submit" class="btn btn-sm btn-danger" title="Delete User" aria-label="Delete User">
 										<i class="bi bi-trash"></i>
 									</button>
 								</form>

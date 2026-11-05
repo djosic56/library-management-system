@@ -89,3 +89,5 @@ function logAction(int $userId, string $action, string $ip, ?string $details = n
 
 // Initialize Database singleton on bootstrap
 getDatabase();
+
+\App\Helpers\AuthHelper::validateSession();

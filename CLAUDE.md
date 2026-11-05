@@ -83,7 +83,7 @@ Database connection is configured in `config.php`:
 
 ### Core Files
 
-- **config.php** - Database connection, session configuration, constants
+- **config.php** - Database connection, session configuration, constants (not in git; copy from `config.example.php`)
 - **functions.php** - Shared utility functions (auth, CSRF, validation, data retrieval)
 - **header.php** - Navigation bar (shows Admin menu only for level 1 users)
 - **footer.php** - Page footer
@@ -102,7 +102,6 @@ Database connection is configured in `config.php`:
 
 ### Data Export Files
 
-- **export.php** - Export functionality
 - **export_books_csv.php** - CSV export for books
 - **get_book_history.php** - Retrieve book status history
 
@@ -182,7 +181,7 @@ Books can have:
 
 - Sessions configured with HTTPOnly, Strict SameSite cookies
 - Session regeneration on login (using `session_regenerate_id(false)` to preserve data)
-- Session timeout after 30 minutes of inactivity
+- Session ends after 30 minutes of inactivity or when the user is deleted; a changed user level applies at once (`AuthHelper::validateSession()`)
 
 ### CSRF Protection
 

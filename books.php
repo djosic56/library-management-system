@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 	}
 	
 	// ADD BOOK
-	if (isset($_POST['add_book']) && is_admin()) {
+	if (isset($_POST['add_book'])) {
 		$bookData = [
 			'title' => trim($_POST['title'] ?? ''),
 			'pages' => trim($_POST['pages'] ?? ''),
@@ -212,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 	}
 
 	// DELETE BOOK
-	elseif (isset($_POST['delete_book']) && is_admin()) {
+	elseif (isset($_POST['delete_book'])) {
 		$id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
 
 		if (!$id) {
@@ -392,7 +392,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 				}
 				table.mobile-cards td.table-actions .btn,
 				table.mobile-cards td.table-actions form { margin: 0.15rem 0.3rem 0.15rem 0; }
-				table.mobile-cards td.table-actions .btn { padding: 0.4rem 0.7rem; }
+				table.mobile-cards td.table-actions .btn { padding: 0.4rem 0.7rem; min-width: 2.75rem; min-height: 2.75rem; }
 				table.mobile-cards td[colspan]::before { content: ""; margin: 0; }
 			}
 		</style>
@@ -580,7 +580,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 								<button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#historyModal"
 										data-book-id="<?php echo $book['id']; ?>"
 										data-book-title="<?php echo htmlspecialchars($book['title']); ?>"
-										title="View History">
+										title="View History" aria-label="View History">
 									<i class="bi bi-clock-history"></i>
 								</button>
 								<button type="button" class="btn btn-sm <?php echo is_admin() ? 'btn-primary' : 'btn-outline-primary'; ?>" data-bs-toggle="modal" data-bs-target="#editBookModal"
@@ -594,7 +594,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 										data-invoice="<?php echo $book['invoice']; ?>"
 										data-note="<?php echo htmlspecialchars($book['note']); ?>"
 										data-authors='<?php echo htmlspecialchars(json_encode($book['authors_list'] ?? [], JSON_HEX_APOS | JSON_HEX_QUOT)); ?>'
-										title="<?php echo is_admin() ? 'Edit' : 'View'; ?>">
+										title="<?php echo is_admin() ? 'Edit' : 'View'; ?>" aria-label="<?php echo is_admin() ? 'Edit' : 'View'; ?>">
 									<i class="bi <?php echo is_admin() ? 'bi-pencil' : 'bi-eye'; ?>"></i>
 								</button>
 								<?php if (is_admin()) { ?>
@@ -602,7 +602,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 									<?php echo csrf_field(); ?>
 									<input type="hidden" name="delete_book" value="1">
 									<input type="hidden" name="id" value="<?php echo $book['id']; ?>">
-									<button type="submit" class="btn btn-sm btn-danger" title="Delete">
+									<button type="submit" class="btn btn-sm btn-danger" title="Delete" aria-label="Delete">
 										<i class="bi bi-trash"></i>
 									</button>
 								</form>
@@ -616,7 +616,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 									<?php echo csrf_field(); ?>
 									<input type="hidden" name="add_process_correct_history" value="1">
 									<input type="hidden" name="id" value="<?php echo $book['id']; ?>">
-									<button type="submit" class="btn btn-sm btn-warning" title="Add Process & Correct History">
+									<button type="submit" class="btn btn-sm btn-warning" title="Add Process &amp; Correct History" aria-label="Add Process &amp; Correct History">
 										<i class="bi bi-plus-circle"></i>
 									</button>
 								</form>

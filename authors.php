@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 	}
 	
 	// ADD AUTHOR
-	if (isset($_POST['add_author']) && is_admin()) {
+	if (isset($_POST['add_author'])) {
 		$authorData = [
 			'name' => trim($_POST['name'] ?? ''),
 			'fname' => trim($_POST['fname'] ?? ''),
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 	}
 	
 	// EDIT AUTHOR
-	elseif (isset($_POST['edit_author']) && is_admin()) {
+	elseif (isset($_POST['edit_author'])) {
 		$id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
 
 		if (!$id) {
@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 	}
 	
 	// DELETE AUTHOR
-	elseif (isset($_POST['delete_author']) && is_admin()) {
+	elseif (isset($_POST['delete_author'])) {
 		$id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
 
 		if (!$id) {
@@ -165,7 +165,7 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 			}
 			table.mobile-cards td.table-actions .btn,
 			table.mobile-cards td.table-actions form { margin: 0.15rem 0.3rem 0.15rem 0; }
-			table.mobile-cards td.table-actions .btn { padding: 0.4rem 0.7rem; }
+			table.mobile-cards td.table-actions .btn { padding: 0.4rem 0.7rem; min-width: 2.75rem; min-height: 2.75rem; }
 			table.mobile-cards td[colspan]::before { content: ""; margin: 0; }
 		}
 		/* View popup (user razina): zaključana polja moraju ostati čitljiva */
@@ -295,7 +295,7 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 										data-name="<?php echo htmlspecialchars($author['name']); ?>"
 										data-fname="<?php echo htmlspecialchars($author['fname']); ?>"
 										data-email="<?php echo htmlspecialchars($author['email'] ?? ''); ?>"
-										title="<?php echo is_admin() ? 'Edit' : 'View'; ?>">
+										title="<?php echo is_admin() ? 'Edit' : 'View'; ?>" aria-label="<?php echo is_admin() ? 'Edit' : 'View'; ?>">
 									<i class="bi <?php echo is_admin() ? 'bi-pencil' : 'bi-eye'; ?>"></i>
 								</button>
 								<?php if (is_admin()) { ?>
@@ -303,7 +303,7 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 									<?php echo csrf_field(); ?>
 									<input type="hidden" name="delete_author" value="1">
 									<input type="hidden" name="id" value="<?php echo $author['id']; ?>">
-									<button type="submit" class="btn btn-sm btn-danger" title="Delete">
+									<button type="submit" class="btn btn-sm btn-danger" title="Delete" aria-label="Delete">
 										<i class="bi bi-trash"></i>
 									</button>
 								</form>
@@ -326,11 +326,11 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 	<div class="modal fade" id="addAuthorModal" tabindex="-1">
 		<div class="modal-dialog">
 			<div class="modal-content">
-				<div class="modal-header">
+				<div class="modal-header bg-success text-white">
 					<h5 class="modal-title">
 						<i class="bi bi-person-plus"></i> Add Author
 					</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
 				</div>
 				<form method="POST">
 					<?php echo csrf_field(); ?>
@@ -366,11 +366,11 @@ $next_sort_order_name = ($sort_by === 'name' && $sort_order === 'ASC') ? 'DESC' 
 	<div class="modal fade" id="editAuthorModal" tabindex="-1">
 		<div class="modal-dialog">
 			<div class="modal-content">
-				<div class="modal-header">
+				<div class="modal-header bg-primary text-white">
 					<h5 class="modal-title">
 						<?php if (is_admin()) { ?><i class="bi bi-pencil"></i> Edit Author<?php } else { ?><i class="bi bi-eye"></i> View Author<?php } ?>
 					</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
 				</div>
 				<form method="POST">
 					<?php if (is_admin()) { echo csrf_field(); } ?>

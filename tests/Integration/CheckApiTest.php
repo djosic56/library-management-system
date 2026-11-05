@@ -78,14 +78,14 @@ class CheckApiTest extends TestCase
         }
 
         try {
-            self::$pdo = new \PDO('mysql:host=localhost;dbname=jsistem_ap;charset=utf8mb4', 'jsistem_apuser', 'pAP3779',
+            self::$pdo = new \PDO('mysql:host=localhost;dbname=jsistem_ap;charset=utf8mb4', 'jsistem_apuser', getenv('DB_PASS') ?: '',
                 [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]);
         } catch (\Throwable $e) {
             self::$skipReason = 'Local development database (jsistem_ap) is unreachable: ' . $e->getMessage();
             return;
         }
         $adminId = self::$pdo->query('SELECT id FROM users WHERE level = 1 ORDER BY id LIMIT 1')->fetchColumn();
-        $user = self::$pdo->query('SELECT id, level FROM users WHERE level <> 1 ORDER BY id LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
+        $user = self::$pdo->query('SELECT id, level FROM users WHERE level = 2 ORDER BY id LIMIT 1')->fetch(\PDO::FETCH_ASSOC);
         if (!$adminId || !$user) {
             self::$skipReason = 'The jsistem_ap database has no admin and non-admin user to log in as';
             return;
@@ -483,6 +483,89 @@ class CheckApiTest extends TestCase
             self::$pdo->prepare('DELETE FROM history WHERE id_book = ?')->execute([$id]);
             self::$pdo->prepare('DELETE FROM book WHERE id = ?')->execute([$id]);
         }
+    }
+
+    public function testDeletedUserLosesAccessImmediately(): void
+    {
+        $id = $this->createTempUser(2);
+        try {
+            $sid = self::makeSession($id, 2, self::$csrfToken);
+            [$code] = $this->get('books.php', [], $sid);
+            $this->assertSame(200, $code);
+
+            self::$pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+
+            [$code, $headers] = $this->get('books.php', [], $sid);
+            $this->assertSame(302, $code);
+            $this->assertStringContainsString('login.php', implode("\n", $headers));
+            [$code] = $this->get('check_api.php', ['action' => 'status', 'id' => str_repeat('a', 32)], $sid);
+            $this->assertSame(401, $code);
+        } finally {
+            self::$pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+        }
+    }
+
+    public function testChangedUserLevelAppliesToExistingSession(): void
+    {
+        $id = $this->createTempUser(1);
+        try {
+            $sid = self::makeSession($id, 1, self::$csrfToken);
+            [$code] = $this->get('manage_users.php', [], $sid);
+            $this->assertSame(200, $code);
+
+            self::$pdo->prepare('UPDATE users SET level = 2 WHERE id = ?')->execute([$id]);
+
+            [$code, $headers] = $this->get('manage_users.php', [], $sid);
+            $this->assertNotSame(200, $code);
+            $this->assertStringContainsString('index.php', implode("\n", $headers));
+        } finally {
+            self::$pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+        }
+    }
+
+    public function testIdleSessionExpiresAfterThirtyMinutes(): void
+    {
+        $id = $this->createTempUser(2);
+        try {
+            $sid = self::makeSession($id, 2, self::$csrfToken);
+            [$code] = $this->get('books.php', [], $sid);
+            $this->assertSame(200, $code);
+
+            $file = self::$sessionDir . '/sess_' . $sid;
+            $data = preg_replace('/last_activity\|i:\d+;/', '', (string) file_get_contents($file));
+            file_put_contents($file, $data . 'last_activity|i:' . (time() - 1801) . ';');
+
+            [$code, $headers] = $this->get('books.php', [], $sid);
+            $this->assertSame(302, $code);
+            $this->assertStringContainsString('login.php', implode("\n", $headers));
+        } finally {
+            self::$pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+        }
+    }
+
+    public function testNonAdminPostDoesNotChangeTheBookRow(): void
+    {
+        $title = 'tmp_readonly_' . bin2hex(random_bytes(4));
+        self::$pdo->prepare('INSERT INTO book (title) VALUES (?)')->execute([$title]);
+        $id = (int) self::$pdo->lastInsertId();
+        try {
+            [$edit] = $this->post('books.php', [], ['edit_book' => '1', 'id' => (string) $id, 'title' => 'changed', 'csrf_token' => self::$csrfToken], self::$nonAdminSid);
+            [$delete] = $this->post('books.php', [], ['delete_book' => '1', 'id' => (string) $id, 'csrf_token' => self::$csrfToken], self::$nonAdminSid);
+            $this->assertSame([403, 403], [$edit, $delete]);
+
+            $stmt = self::$pdo->prepare('SELECT title FROM book WHERE id = ?');
+            $stmt->execute([$id]);
+            $this->assertSame($title, $stmt->fetchColumn());
+        } finally {
+            self::$pdo->prepare('DELETE FROM book WHERE id = ?')->execute([$id]);
+        }
+    }
+
+    private function createTempUser(int $level): int
+    {
+        self::$pdo->prepare("INSERT INTO users (username, password, level) VALUES (?, 'x', ?)")
+            ->execute(['tmp_session_' . bin2hex(random_bytes(4)), $level]);
+        return (int) self::$pdo->lastInsertId();
     }
 
     public function testDevelopmentScriptsAreNotReachableOverHttp(): void
