@@ -18,6 +18,7 @@ try {
 	$valid_sort_columns = ['id', 'user_id', 'username', 'action', 'timestamp'];
 	$sort_by = in_array($sort_by, $valid_sort_columns) ? $sort_by : 'timestamp';
 	$sort_order = strtoupper($sort_order) === 'ASC' ? 'ASC' : 'DESC';
+	$order_column = $sort_by === 'username' ? 'u.username' : "ul.$sort_by";
 
 	// Build WHERE clause
 	$where = [];
@@ -38,9 +39,9 @@ try {
 	// Fetch logs
 	$sql = "SELECT ul.id, ul.user_id, u.username, ul.action, ul.details, ul.ip, ul.timestamp
 			FROM user_log ul
-			JOIN users u ON ul.user_id = u.id
+			LEFT JOIN users u ON ul.user_id = u.id
 			$where_clause
-			ORDER BY ul.$sort_by $sort_order
+			ORDER BY $order_column $sort_order
 			LIMIT ? OFFSET ?";
 	
 	$stmt = $pdo->prepare($sql);
@@ -53,7 +54,7 @@ try {
 	$logs = $stmt->fetchAll();
 
 	// Count total logs
-	$count_sql = "SELECT COUNT(*) FROM user_log ul JOIN users u ON ul.user_id = u.id $where_clause";
+	$count_sql = "SELECT COUNT(*) FROM user_log ul LEFT JOIN users u ON ul.user_id = u.id $where_clause";
 	$stmt = $pdo->prepare($count_sql);
 	foreach ($params as $i => $param) {
 		$stmt->bindValue($i + 1, $param, PDO::PARAM_STR);
@@ -278,8 +279,8 @@ try {
 						?>
 						<tr>
 							<td><?php echo htmlspecialchars($log['id']); ?></td>
-							<td><?php echo htmlspecialchars($log['user_id']); ?></td>
-							<td><strong><?php echo htmlspecialchars($log['username']); ?></strong></td>
+							<td><?php echo htmlspecialchars($log['user_id'] ?? '-'); ?></td>
+							<td><strong><?php echo htmlspecialchars($log['username'] ?? 'Deleted user'); ?></strong></td>
 							<td>
 								<span class="badge action-badge <?php echo $badge_class; ?>">
 									<?php echo htmlspecialchars($log['action']); ?>

@@ -6,6 +6,8 @@ require_admin();
 
 $error = '';
 $success = '';
+$users = [];
+$total_pages = 0;
 
 // Pagination and sorting
 $page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, ['options' => ['default' => 1, 'min_range' => 1]]) ?? 1;
