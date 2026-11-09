@@ -126,8 +126,6 @@ Database connection is configured in `config.php`:
 
 ### Data Functions
 
-- `get_books($search_title, $search_author, $filter_status, $filter_invoice, $page, $sort_by, $sort_order)` - Retrieve books with filters
-- `get_books_count(...)` - Count total books matching filters
 - `get_statuses()` - Get all book statuses
 - `get_formatings()` - Get all formatting types
 
