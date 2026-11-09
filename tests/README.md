@@ -29,8 +29,10 @@ The test suite includes:
 
 ### 1. Install PHPUnit via Composer
 
+PHPUnit 11 lives in its own Composer project under `tests/`:
+
 ```bash
-composer require --dev phpunit/phpunit
+cd tests && composer install
 ```
 
 ### 2. Set Up Test Database
@@ -44,7 +46,7 @@ mysql -u jsistem_apuser -p < tests/setup_test_database.sql
 Or manually execute in MySQL:
 
 ```sql
-source D:/home/sites/j-sistem/web/ap_claude/tests/setup_test_database.sql
+source D:/home/sites/j-sistem/web/ap/tests/setup_test_database.sql
 ```
 
 ### 3. Configure Database Credentials
@@ -55,47 +57,50 @@ Test database configuration is in `phpunit.xml`. Default settings:
 - Password: set `DB_PASS` in your local `phpunit.xml` (copy from `phpunit.xml.dist`)
 
 Modify the `<php>` section in `phpunit.xml` if your credentials differ.
+The test bootstrap refuses to run unless `DB_NAME` ends in `_test`.
+
+### 4. Keep the Test Database Migrated
+
+Apply every new file from `migrations/` to the test database as well:
+
+```bash
+php tests/apply_sql.php migrations/<file>.sql
+```
 
 ## Running Tests
 
 ### Run All Tests
 
 ```bash
-vendor/bin/phpunit
-```
-
-Or on Windows:
-
-```bash
-vendor\bin\phpunit
+php tests/vendor/bin/phpunit
 ```
 
 ### Run Specific Test Suite
 
 ```bash
 # Unit tests only
-vendor/bin/phpunit --testsuite "Unit Tests"
+php tests/vendor/bin/phpunit --testsuite "Unit Tests"
 
 # Integration tests only
-vendor/bin/phpunit --testsuite "Integration Tests"
+php tests/vendor/bin/phpunit --testsuite "Integration Tests"
 ```
 
 ### Run Specific Test File
 
 ```bash
-vendor/bin/phpunit tests/Unit/SecurityTest.php
+php tests/vendor/bin/phpunit tests/Unit/SecurityTest.php
 ```
 
 ### Run with Coverage Report (requires Xdebug)
 
 ```bash
-vendor/bin/phpunit --coverage-html coverage
+php tests/vendor/bin/phpunit --coverage-html coverage
 ```
 
-### Run with Verbose Output
+### Show Warning Details
 
 ```bash
-vendor/bin/phpunit --verbose
+php tests/vendor/bin/phpunit --display-warnings
 ```
 
 ## Test Database Management
@@ -197,7 +202,7 @@ To integrate with CI/CD pipelines:
   run: mysql -u root -proot < tests/setup_test_database.sql
 
 - name: Run tests
-  run: vendor/bin/phpunit --coverage-clover coverage.xml
+  run: php tests/vendor/bin/phpunit --coverage-clover coverage.xml
 ```
 
 ## Troubleshooting

@@ -8,7 +8,7 @@ USE jsistem_ap_test;
 
 -- Users table
 CREATE TABLE IF NOT EXISTS `users` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL,
   `password` varchar(255) NOT NULL,
   `level` tinyint(1) NOT NULL DEFAULT 2,
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS `history` (
 -- User log table
 CREATE TABLE IF NOT EXISTS `user_log` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) DEFAULT NULL,
+  `user_id` int(10) unsigned DEFAULT NULL,
   `action` varchar(100) NOT NULL,
   `ip` varchar(45) DEFAULT NULL,
   `details` text DEFAULT NULL,
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS `user_log` (
 CREATE TABLE IF NOT EXISTS `login_attempt` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL,
-  `user_id` int(11) DEFAULT NULL,
+  `user_id` int(10) unsigned DEFAULT NULL,
   `ip_address` varchar(45) NOT NULL,
   `success` tinyint(1) NOT NULL DEFAULT 0,
   `attempted_at` timestamp NOT NULL DEFAULT current_timestamp(),

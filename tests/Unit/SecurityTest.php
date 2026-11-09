@@ -218,15 +218,13 @@ class SecurityTest extends TestCase
      */
     public function testLogActionHandlesExceptionsGracefully()
     {
-        $pdo = $this->createMock(PDO::class);
-        $pdo->method('prepare')->willThrowException(new PDOException('Test error'));
-        $GLOBALS['pdo'] = $pdo;
+        $pdo = TestHelper::database($this);
+        $missingUserId = (int)$pdo->query('SELECT COALESCE(MAX(id), 0) + 1000 FROM users')->fetchColumn();
+        $before = (int)$pdo->query('SELECT COUNT(*) FROM user_log')->fetchColumn();
 
-        // Should not throw exception, just log error
-        ob_start();
-        log_action(1, 'test_action', '127.0.0.1', 'test details');
-        ob_end_clean();
+        // The user_log foreign key rejects an unknown user: log_action() must swallow that
+        log_action($missingUserId, 'test_action', '127.0.0.1', 'test details');
 
-        $this->assertTrue(true); // If we got here, test passed
+        $this->assertSame($before, (int)$pdo->query('SELECT COUNT(*) FROM user_log')->fetchColumn());
     }
 }
