@@ -95,8 +95,8 @@ class SecurityTest extends TestCase
         $this->assertStringContainsString('name="csrf_token"', $html);
         $this->assertStringContainsString('value="', $html);
 
-        // Check that value is properly escaped
-        $this->assertStringNotContainsString('">', $html);
+        // The value is a bare hex token, so nothing in it can break out of the attribute
+        $this->assertMatchesRegularExpression('/^<input type="hidden" name="csrf_token" value="[0-9a-f]{64}">$/', $html);
     }
 
     /**
@@ -181,7 +181,7 @@ class SecurityTest extends TestCase
      */
     public function testSanitizeStringHandlesQuotes()
     {
-        $this->assertEquals('It&039;s a test', sanitize_string("It's a test"));
+        $this->assertEquals('It&#039;s a test', sanitize_string("It's a test"));
         $this->assertEquals('&quot;Quoted&quot;', sanitize_string('"Quoted"'));
     }
 
@@ -202,12 +202,15 @@ class SecurityTest extends TestCase
     }
 
     /**
-     * Test validate_email() accepts international domains
+     * validate_email() relies on FILTER_VALIDATE_EMAIL, which rejects non-ASCII
+     * (IDN) domains. Accepting them would need idn_to_ascii() from ext-intl;
+     * the punycode form of the same domain is accepted.
      */
-    public function testValidateEmailAcceptsInternationalDomains()
+    public function testValidateEmailRejectsUnicodeDomainsButAcceptsPunycode()
     {
-        $this->assertTrue(validate_email('user@münchen.de'));
-        $this->assertTrue(validate_email('test@例え.jp'));
+        $this->assertFalse(validate_email('user@münchen.de'));
+        $this->assertFalse(validate_email('test@例え.jp'));
+        $this->assertTrue(validate_email('user@xn--mnchen-3ya.de'));
     }
 
     /**

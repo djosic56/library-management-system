@@ -100,7 +100,9 @@ class AuthHelper
      */
     public static function isAdmin(): bool
     {
-        return isset($_SESSION['level']) && (int)$_SESSION['level'] === USER_LEVEL_ADMIN;
+        // FILTER_VALIDATE_INT accepts 1 and "1" but not "1admin", which (int) would turn into 1
+        return isset($_SESSION['level'])
+            && filter_var($_SESSION['level'], FILTER_VALIDATE_INT) === USER_LEVEL_ADMIN;
     }
 
     /**

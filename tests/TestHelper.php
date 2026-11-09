@@ -81,6 +81,19 @@ class TestHelper
     }
 
     /**
+     * The connection the application code uses (the Database singleton, set to the
+     * test database in tests/bootstrap.php); skips the test when it is unavailable.
+     */
+    public static function database(\PHPUnit\Framework\TestCase $test): PDO
+    {
+        try {
+            return \App\Database\Database::getInstance()->getConnection();
+        } catch (\InvalidArgumentException $e) {
+            $test->markTestSkipped('Test database not available');
+        }
+    }
+
+    /**
      * Reset session for testing
      */
     public static function resetSession()

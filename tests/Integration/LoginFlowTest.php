@@ -153,15 +153,24 @@ class LoginFlowTest extends TestCase
     {
         require_once __DIR__ . '/../../functions.php';
 
-        // Log 5 failed attempts from one IP
+        // Log 5 failed attempts from one IP, each for a different username
         for ($i = 0; $i < 5; $i++) {
-            log_login_attempt('testuser', null, '127.0.0.1', false);
+            log_login_attempt("user$i", null, '127.0.0.1', false);
         }
 
-        // Check that different IP is not locked
-        $isLocked = check_login_attempts('testuser', '192.168.1.1');
+        // A user on another IP is not locked. (The same username would be: the
+        // lockout counts failures per username as well as per IP.)
+        $this->assertFalse(check_login_attempts('anotheruser', '192.168.1.1'));
+    }
 
-        $this->assertFalse($isLocked);
+    /**
+     * Test a username with no attempts at all is not locked
+     */
+    public function testNoAttemptsMeansNotLocked()
+    {
+        require_once __DIR__ . '/../../functions.php';
+
+        $this->assertFalse(check_login_attempts('testuser', '127.0.0.1'));
     }
 
     /**
